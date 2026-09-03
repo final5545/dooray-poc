@@ -3,12 +3,17 @@ from support.command import (
     ACTION_ACCEPT,
     ACTION_DONE,
     ACTION_UNDO,
+    ACTION_CREATE,
+    CALLBACK_FORM,
     CALLBACK_TICKET,
     build_announcement,
+    build_form_confirm,
+    build_form_result,
     build_error,
     build_result,
     build_ticket_list,
     parse_action,
+    parse_form_action,
 )
 
 TASKS = [
@@ -295,3 +300,49 @@ class TestResponseUrl:
         got = parse_action({"callbackId": CALLBACK_TICKET,
                             "actionValue": f"{ACTION_DONE}/t1/working"})
         assert got is not None and got.response_url is None
+
+
+class TestFormConfirmButtons:
+    """접수 확인은 커맨드 응답이라 버튼이 실제로 동작한다.
+
+    일반 메시지의 버튼은 클릭이 전달되지 않는다(2026-09-03 실측). 그래서
+    양식 제출은 일반 메시지로 받고, 확인만 커맨드 응답으로 띄운다.
+    """
+    KEY = "ch-1.user-1"
+
+    def test_생성과_취소_버튼이_나온다(self):
+        got = build_form_confirm("아래 내용으로 업무를 생성할까요?\n\n제목 : 건", self.KEY)
+        acts = got["attachments"][0]["actions"]
+        assert [a["text"] for a in acts] == ["생성", "취소"]
+
+    def test_버튼에_대기_식별자가_담긴다(self):
+        got = build_form_confirm("머리\n본문", self.KEY)
+        assert got["attachments"][0]["actions"][0]["value"] == f"{ACTION_CREATE}/{self.KEY}"
+
+    def test_본인에게만_보인다(self):
+        assert build_form_confirm("머리\n본문", self.KEY)["responseType"] == "ephemeral"
+
+    def test_첫_줄이_제목이_되고_나머지가_본문(self):
+        got = build_form_confirm("아래 내용으로 업무를 생성할까요?\n\n제목 : 건", self.KEY)
+        assert got["text"] == "아래 내용으로 업무를 생성할까요?"
+        assert "제목 : 건" in got["attachments"][0]["text"]
+
+    def test_클릭을_파싱한다(self):
+        got = parse_form_action({"callbackId": CALLBACK_FORM,
+                                 "actionValue": f"{ACTION_CREATE}/{self.KEY}"})
+        assert got.action == ACTION_CREATE and got.key == self.KEY
+
+    def test_티켓_버튼과_섞이지_않는다(self):
+        assert parse_form_action({"callbackId": CALLBACK_TICKET,
+                                  "actionValue": "done/t1/working"}) is None
+        assert parse_action({"callbackId": CALLBACK_FORM,
+                             "actionValue": f"{ACTION_CREATE}/{self.KEY}"}) is None
+
+    def test_형식이_틀리면_무시(self):
+        for v in ("create", "", "create/", "/key", "create/a/b"):
+            assert parse_form_action({"callbackId": CALLBACK_FORM,
+                                      "actionValue": v}) is None
+
+    def test_결과는_그_자리를_갈아끼운다(self):
+        got = build_form_result("요청을 취소했습니다.")
+        assert got["replaceOriginal"] is True and "취소" in got["text"]

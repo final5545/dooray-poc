@@ -15,6 +15,7 @@ CRM_BASE_URL 한 줄만 교체하면 되고 애플리케이션 코드는 그대�
     python standalone/mock_crm.py 8900
 """
 import json
+import os
 import sys
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -146,12 +147,15 @@ def _now() -> str:
 
 def main() -> None:
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8900
-    server = HTTPServer(("127.0.0.1", port), Handler)
+    # 기본은 로컬만 — 가짜 고객정보를 사내망에 열어 둘 이유가 없다.
+    # 컨테이너로 띄울 때만 MOCK_CRM_HOST=0.0.0.0 으로 연다.
+    host = os.getenv("MOCK_CRM_HOST", "127.0.0.1")
+    server = HTTPServer((host, port), Handler)
 
     print("=" * 58)
     print("  모의 CRM 서버 — 시연·개발용 (실제 CRM 아님)")
     print("=" * 58)
-    print(f"  http://127.0.0.1:{port}/customers/{{고객번호}}")
+    print(f"  http://{host}:{port}/customers/{{고객번호}}")
     print(f"  등록된 고객번호 {len(CUSTOMERS)}건:")
     for code, row in CUSTOMERS.items():
         print(f"    {code:9} {row['custName']} ({row['custType']})")

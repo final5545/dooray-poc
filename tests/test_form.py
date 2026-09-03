@@ -8,8 +8,10 @@ from support.form import (
     build_form,
     build_list,
     build_preview,
+    looks_like_form,
     parse_command,
     parse_form,
+    pick_form,
     to_request,
 )
 
@@ -143,3 +145,49 @@ class TestPreview:
         d = parse_form("이전요청서\n고객번호 : E230096")
         got = build_preview(d, "제목", None)
         assert "메모" not in got and "연락처" not in got
+
+
+class TestPickForm:
+    """커맨드가 방의 최근 양식을 찾아 읽는다.
+
+    슬래시 커맨드에 여러 줄을 실을 수 없어(2026-09-03 실측) 양식은 일반
+    메시지로 올리고 커맨드가 그것을 찾아온다.
+    """
+
+    def _msg(self, text, sender="u1"):
+        return {"text": text,
+                "sender": {"member": {"organizationMemberId": sender}}}
+
+    def test_명령_줄을_떼고_본문만_준다(self):
+        got = pick_form([self._msg(f"#{SUBMIT}\n{FILLED}")], "u1")
+        assert got.startswith("이전요청서") and "#" not in got.splitlines()[0]
+
+    def test_명령_없이_붙여넣은_양식도_찾는다(self):
+        assert pick_form([self._msg(FILLED)], "u1").startswith("이전요청서")
+
+    def test_최신_것을_고른다(self):
+        old = FILLED.replace("E230096", "E140605")
+        got = pick_form([self._msg(FILLED), self._msg(old)], "u1")
+        assert "E230096" in got
+
+    def test_남의_양식은_고르지_않는다(self):
+        assert pick_form([self._msg(FILLED, sender="u2")], "u1") is None
+
+    def test_사용자를_지정하지_않으면_아무거나(self):
+        assert pick_form([self._msg(FILLED, sender="u2")]) is not None
+
+    def test_잡담은_양식이_아니다(self):
+        assert pick_form([self._msg("점심 뭐 먹지"),
+                          self._msg("E230096 조회해줘")], "u1") is None
+
+    def test_제목을_지운_양식도_라벨로_알아본다(self):
+        body = "고객번호 : E230096\n연락처 : 02-1234-5678"
+        assert pick_form([self._msg(body)], "u1") is not None
+
+    def test_라벨_하나만으로는_양식이_아니다(self):
+        # '고객번호 : E230096' 한 줄짜리 조회 요청을 양식으로 오인하면 안 된다
+        assert not looks_like_form("고객번호 : E230096")
+
+    def test_빈_입력(self):
+        assert pick_form([], "u1") is None
+        assert pick_form(None, "u1") is None

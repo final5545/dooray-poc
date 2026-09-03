@@ -187,3 +187,42 @@ def build_preview(data: FormData, subject: str, customer_name: str | None) -> st
     lines += [f"{label} : {value}" for label, value in rows if value]
     lines += ["", f"생성 #{CONFIRM}    취소 #{CANCEL}"]
     return "\n".join(lines)
+
+
+# ── 대화방 로그에서 양식 찾기 ────────────────────────────────
+#
+# 슬래시 커맨드에는 여러 줄을 실을 수 없다(2026-09-03 실측: 개행이 들어가면
+# 커맨드로 인식되지 않고 일반 메시지로 전송된다). 그래서 양식은 일반 메시지로
+# 올리고, 커맨드는 **그 메시지를 찾아 읽는다**. 버튼이 동작하는 곳은 커맨드
+# 응답뿐이므로(support/command.py) 확인 버튼을 쓰려면 이 우회가 필요하다.
+
+def looks_like_form(text: str) -> bool:
+    """양식으로 볼 만한 메시지인가.
+
+    제목 줄이 있거나 우리 항목 라벨이 두 개 이상 보이면 양식으로 본다.
+    사람이 제목 줄을 지우고 붙여넣는 경우가 있어 제목만으로 판정하지 않는다.
+    """
+    if not text:
+        return False
+    if _type_from_title(text):
+        return True
+    hits = sum(1 for label in _LABELS if f"{label} " in text or f"{label}:" in text)
+    return hits >= 2
+
+
+def pick_form(messages: list[dict], user_id: str | None = None) -> str | None:
+    """대화방 로그 → 그 사람이 마지막으로 올린 양식 본문. 없으면 None.
+
+    messages 는 Dooray 로그 응답 그대로다(최신이 앞). '#기술정보' 같은 명령
+    줄이 앞에 붙어 있으면 떼어 낸다.
+    """
+    for m in messages or []:
+        sender = ((m.get("sender") or {}).get("member") or {}).get("organizationMemberId")
+        if user_id and sender != user_id:
+            continue
+        text = m.get("text") or ""
+        parsed = parse_command(text)
+        body = parsed[1] if parsed else text
+        if looks_like_form(body):
+            return body
+    return None

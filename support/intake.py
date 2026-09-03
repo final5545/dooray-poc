@@ -45,11 +45,12 @@ PENDING_TTL = 600.0
 
 
 @dataclass
-class _Pending:
+class Pending:
     data: FormData
     subject: str
     body: str
     at: float
+    customer_name: str | None = None
 
 
 class PendingStore:
@@ -61,14 +62,14 @@ class PendingStore:
 
     def __init__(self, ttl: float = PENDING_TTL):
         self._ttl = ttl
-        self._items: dict[tuple[str, str], _Pending] = {}
+        self._items: dict[tuple[str, str], Pending] = {}
         self._lock = threading.Lock()
 
-    def put(self, channel: str, user: str, item: _Pending) -> None:
+    def put(self, channel: str, user: str, item: Pending) -> None:
         with self._lock:
             self._items[(channel, user)] = item
 
-    def take(self, channel: str, user: str) -> _Pending | None:
+    def take(self, channel: str, user: str) -> Pending | None:
         """꺼내면서 지운다. 만료됐으면 None."""
         with self._lock:
             item = self._items.pop((channel, user), None)
@@ -90,10 +91,14 @@ def handle(text: str, *,
            llm: LLMExtractor | None = None,
            origin_message: str | None = None,
            today: _dt.date | None = None,
-           on_created=None) -> str | None:
+           on_created=None,
+           announce=None) -> str | None:
     """'#' 명령 1건 처리. 우리 명령이 아니면 None(호출자가 평소대로 처리).
 
     None을 돌려주는 것이 중요하다 — CRM 조회 방의 일반 메시지를 삼키면 안 된다.
+
+    announce: 접수 사실을 기술 지원 방에 알리는 콜백. (제목, 링크)로 부른다.
+        여기(CRM 조회 방)에서 낸 요청을 기술팀이 모르고 지나치면 안 된다.
     """
     parsed = parse_command(text)
     if not parsed:
@@ -111,7 +116,7 @@ def handle(text: str, *,
             else "취소할 요청이 없습니다."
 
     if command == CONFIRM:
-        return _confirm(channel, user_id, store, tickets, on_created)
+        return _confirm(channel, user_id, store, tickets, on_created, announce)
 
     if command == SUBMIT:
         return _submit(rest, channel=channel, user_id=user_id, store=store,
@@ -121,19 +126,24 @@ def handle(text: str, *,
     return None          # 우리가 아는 명령이 아니다
 
 
-def _submit(rest: str, *, channel, user_id, store, tickets, customers, llm,
-            origin_message, today) -> str:
-    """채운 양식 → 확인 요청. 아직 만들지 않는다."""
-    if not rest.strip():
-        return (f"#{SUBMIT} 아래에 채운 양식을 붙여 주세요.\n"
-                f"빈 양식이 필요하면 #{LIST} 을 입력하세요.")
+def prepare(form_text: str, *, channel: str, user_id: str,
+            tickets=None, customers=None, origin_message=None,
+            today: _dt.date | None = None) -> tuple[Pending | None, str]:
+    """채운 양식 → (대기 항목, 안내문). 만들지는 않는다.
 
-    data = parse_form(rest)
+    대기 항목이 None이면 안내문이 곧 오류 사유다. 텍스트 확인(#확인)과 버튼
+    확인(슬래시 커맨드) 두 경로가 이 조립을 나눠 쓴다.
+    """
+    if not (form_text or "").strip():
+        return None, (f"#{SUBMIT} 아래에 채운 양식을 붙여 주세요.\n"
+                      f"빈 양식이 필요하면 #{LIST} 을 입력하세요.")
+
+    data = parse_form(form_text)
     if not data.is_valid:
-        return ("고객번호를 찾지 못했습니다.\n"
-                "양식의 '고객번호' 칸에 E로 시작하는 번호를 넣어 주세요.")
+        return None, ("고객번호를 찾지 못했습니다.\n"
+                      "양식의 '고객번호' 칸에 E로 시작하는 번호를 넣어 주세요.")
     if tickets is None:
-        return "업무 등록 설정이 없습니다."
+        return None, "업무 등록 설정이 없습니다."
 
     req = to_request(data, today)
 
@@ -155,16 +165,33 @@ def _submit(rest: str, *, channel, user_id, store, tickets, customers, llm,
                       origin_channel=channel, origin_message=origin_message,
                       origin_requester=user_id)
 
-    store.put(channel, user_id, _Pending(data=data, subject=subject,
-                                         body=body, at=time.time()))
-    return build_preview(data, subject, customer_name)
+    item = Pending(data=data, subject=subject, body=body, at=time.time(),
+                   customer_name=customer_name)
+    return item, build_preview(data, subject, customer_name)
 
 
-def _confirm(channel, user_id, store, tickets, on_created) -> str:
+def _submit(rest: str, *, channel, user_id, store, tickets, customers, llm,
+            origin_message, today) -> str:
+    """채운 양식 → 확인 요청(텍스트). 아직 만들지 않는다."""
+    item, message = prepare(rest, channel=channel, user_id=user_id,
+                            tickets=tickets, customers=customers,
+                            origin_message=origin_message, today=today)
+    if item is None:
+        return message
+    store.put(channel, user_id, item)
+    return message
+
+
+def _confirm(channel, user_id, store, tickets, on_created, announce=None) -> str:
     """대기 중인 양식을 업무로 만든다."""
     item = store.take(channel, user_id)
     if item is None:
         return f"확인할 요청이 없습니다. #{SUBMIT} 으로 양식을 먼저 내주세요."
+    return create(item, tickets, on_created=on_created, announce=announce)
+
+
+def create(item: Pending, tickets, *, on_created=None, announce=None) -> str:
+    """대기 항목 → 업무. 두 확인 경로가 나눠 쓴다."""
     if tickets is None:
         return "업무 등록 설정이 없습니다."
 
@@ -183,12 +210,23 @@ def _confirm(channel, user_id, store, tickets, on_created) -> str:
         except Exception:
             log.exception("생성 알림 콜백 실패")
 
-    lines = ["기술지원 요청이 접수되었습니다.", item.subject,
-             f"고객번호 : {item.data.code}"]
+    task_url = None
     url = getattr(tickets, "task_url", None)
     if callable(url) and post_id:
         try:
-            lines.append(url(post_id))
+            task_url = url(post_id)
         except Exception:
             pass
+
+    # 여기서 낸 요청을 기술팀이 모르고 지나치면 안 된다.
+    if announce:
+        try:
+            announce(item.subject, task_url)
+        except Exception:
+            log.exception("기술 지원 방 알림 실패")
+
+    lines = ["기술지원 요청이 접수되었습니다.", item.subject,
+             f"고객번호 : {item.data.code}"]
+    if task_url:
+        lines.append(task_url)
     return "\n".join(lines)

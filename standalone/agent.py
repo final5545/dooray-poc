@@ -127,6 +127,9 @@ if "support" in ROUTES.values():
 # 요청서 양식 접수 — 확인(#확인)을 기다리는 동안만 들고 있는다.
 INTAKE = PendingStore()
 
+# 기술 지원 방. 다른 방(CRM 조회)에서 낸 요청도 여기로 알린다.
+SUPPORT_CHANNEL = next((ch for ch, r in ROUTES.items() if r == "support"), None)
+
 # 자유서술 필드(고객사명·세부사항·담당자) 보강용. 없으면 규칙 기반 결과만 쓴다.
 LLM = None
 LLM_LABEL = "미설정 (규칙 기반만)"
@@ -251,6 +254,7 @@ def handle(client: DoorayClient, channel: str, text: str, sender: str,
             tickets=TICKET_REPO, customers=CRM_REPO, llm=LLM,
             origin_message=content.get("id"),
             on_created=WATCHER.track if WATCHER else None,
+            announce=_announce_to_support(client, channel),
         )
         if reply is None:
             reply = crm_handle(text, CRM_REPO)
@@ -285,6 +289,27 @@ def _poll_completions(client: DoorayClient) -> None:
             continue
         for reply in result.replies:
             _notify_completion(client, reply)
+
+
+def _announce_to_support(client: DoorayClient, from_channel: str):
+    """접수 사실을 기술 지원 방에 알리는 콜백을 만든다.
+
+    다른 방(CRM 조회)에서 낸 요청은 기술팀 눈에 띄지 않는다. 업무만 조용히
+    생기고 아무도 모르면 자동화가 아니라 사각지대다.
+
+    같은 방에서 낸 요청이면 굳이 두 번 말하지 않는다 — 접수 회신이 이미 거기 있다.
+    """
+    if not SUPPORT_CHANNEL or SUPPORT_CHANNEL == from_channel:
+        return None
+
+    def announce(subject: str, task_url: str | None) -> None:
+        lines = ["🆕 새 기술지원 요청이 등록되었습니다.", subject]
+        if task_url:
+            lines.append(task_url)
+        client.send_message(SUPPORT_CHANNEL, "\n".join(lines))
+        log.info("기술 지원 방 알림 → %s", subject)
+
+    return announce
 
 
 def _notify_completion(client: DoorayClient, reply) -> None:

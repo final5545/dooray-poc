@@ -212,3 +212,61 @@ def build_result(req: ActionRequest, subject: str, new_state: str,
 
 def build_error(message: str) -> dict:
     return {"responseType": "ephemeral", "replaceOriginal": True, "text": message}
+
+
+# ── 요청서 접수 확인 버튼 ────────────────────────────────────
+#
+# 양식은 여러 줄이라 커맨드 인자로 실을 수 없다(form.py 참조). 그래서 커맨드가
+# 방의 최근 양식을 읽어와 여기 확인 화면을 띄우고, 실제 생성은 버튼으로 받는다.
+# 커맨드 응답의 버튼은 클릭이 우리에게 도달한다 — 일반 메시지와 다른 점이다.
+CALLBACK_FORM = "form-action"
+ACTION_CREATE = "create"
+ACTION_DISCARD = "discard"
+
+
+@dataclass
+class FormAction:
+    """접수 확인 버튼 클릭 1건."""
+    action: str          # create | discard
+    key: str             # 대기 항목 식별자
+    response_url: str | None = None
+    channel_id: str | None = None
+
+
+def parse_form_action(payload: dict) -> FormAction | None:
+    """접수 확인 버튼 클릭 → FormAction. 우리 버튼이 아니면 None."""
+    if (payload or {}).get("callbackId") != CALLBACK_FORM:
+        return None
+    parts = str(payload.get("actionValue") or "").split("/")
+    if len(parts) != 2:
+        return None
+    action, key = parts
+    if action not in (ACTION_CREATE, ACTION_DISCARD) or not key:
+        return None
+    return FormAction(
+        action=action, key=key,
+        response_url=payload.get("responseUrl"),
+        channel_id=((payload.get("channel") or {}).get("id")) or payload.get("channelId"),
+    )
+
+
+def build_form_confirm(preview: str, key: str) -> dict:
+    """미리보기 + [생성][취소]. 누른 사람에게만 보인다."""
+    head, _, detail = preview.partition("\n")
+    return {
+        "responseType": "ephemeral",
+        "text": head,
+        "attachments": [{
+            "callbackId": CALLBACK_FORM,
+            "text": detail.strip(),
+            "actions": [
+                _btn("생성", f"{ACTION_CREATE}/{key}", primary=True),
+                _btn("취소", f"{ACTION_DISCARD}/{key}"),
+            ],
+        }],
+    }
+
+
+def build_form_result(text: str) -> dict:
+    """생성·취소 결과. 확인 화면을 그 자리에서 갈아끼운다."""
+    return _payload(text, None, replace=True)

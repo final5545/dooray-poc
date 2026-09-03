@@ -8,7 +8,7 @@ RUN pip install --no-cache-dir requests certifi python-dotenv
 COPY crm/ ./crm/
 COPY support/ ./support/
 COPY routing.py ./
-COPY standalone/command_server.py ./standalone/
+COPY standalone/command_server.py standalone/mock_crm.py ./standalone/
 
 EXPOSE 8910
 CMD ["python", "-u", "standalone/command_server.py", "8910"]

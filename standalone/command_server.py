@@ -24,7 +24,11 @@ sys.path.insert(0, _ROOT)
 load_dotenv(os.path.join(_ROOT, ".env"), override=True)
 
 from support.command import (           # noqa: E402
+    ACTION_CREATE,
     ACTION_DONE,
+    build_form_confirm,
+    build_form_result,
+    parse_form_action,
     build_announcement,
     build_error,
     build_result,
@@ -37,12 +41,17 @@ from support.channels import (          # noqa: E402
     me_from_channels,
 )
 from support.completion import news_card, reply_for_task, task_url  # noqa: E402
+from support.form import pick_form                     # noqa: E402
+from support.intake import PendingStore, create, prepare  # noqa: E402
 from support.repository import DoorayTicketRepository  # noqa: E402
+from crm.client import HttpCustomerRepository          # noqa: E402
 
 APP_TOKEN = os.getenv("DOORAY_APP_TOKEN", "")
 TOKEN = os.getenv("DOORAY_TOKEN", "")
 PROJECT = os.getenv("DOORAY_SUPPORT_PROJECT", "")
 DOMAIN = os.getenv("DOORAY_DOMAIN", "infomax.dooray.com")
+SUPPORT_CHANNEL = os.getenv("DOORAY_SUPPORT_CHANNEL", "")
+CRM_BASE_URL = os.getenv("CRM_BASE_URL", "")
 
 repo = DoorayTicketRepository(TOKEN, PROJECT, domain=DOMAIN) if TOKEN and PROJECT else None
 
@@ -75,6 +84,13 @@ class Messenger:
         self._load()
         return channel_for_member(member_id, self._me, self._directs)
 
+    def recent(self, channel: str, size: int = 30) -> list[dict]:
+        """대화방 최근 메시지. 커맨드가 방금 올라온 양식을 찾는 데 쓴다."""
+        r = self._s.get(f"https://api.dooray.com/messenger/v1/channels/{channel}/logs",
+                        params={"size": size}, timeout=15)
+        r.raise_for_status()
+        return r.json().get("result") or []
+
     def send(self, channel: str, text: str, attachments: list | None = None) -> None:
         body = {"text": text}
         if attachments:
@@ -85,6 +101,13 @@ class Messenger:
 
 
 messenger = Messenger(TOKEN) if TOKEN else None
+
+# 요청서 접수 확인 — 버튼을 누를 때까지만 들고 있는다.
+# 이 서비스는 replicas 1이라 프로세스 메모리로 충분하다.
+INTAKE = PendingStore()
+
+# 고객사명 조회용. 없으면 양식에 적힌 고객명을 그대로 쓴다.
+CRM = HttpCustomerRepository(CRM_BASE_URL) if CRM_BASE_URL else None
 
 
 def _authorized(payload: dict) -> bool:
@@ -105,8 +128,43 @@ def handle_command(payload: dict) -> dict:
     return build_ticket_list(tasks)
 
 
+def handle_intake(payload: dict) -> dict:
+    """/접수 → 방금 올린 양식을 읽어 확인 화면 + 버튼.
+
+    양식은 여러 줄이라 커맨드 인자로 실을 수 없다(2026-09-03 실측: 개행이 들어가면
+    커맨드로 인식되지 않는다). 그래서 방의 로그에서 그 사람의 마지막 양식을 찾는다.
+    """
+    channel = payload.get("channelId")
+    user = payload.get("userId")
+    if repo is None or messenger is None or not channel:
+        return {"responseType": "ephemeral", "text": "서버 설정이 없습니다."}
+
+    try:
+        form_text = pick_form(messenger.recent(channel), user)
+    except Exception as e:
+        print(f"    로그 조회 실패: {e}")
+        return {"responseType": "ephemeral", "text": "대화 내용을 읽지 못했습니다."}
+
+    if not form_text:
+        return {"responseType": "ephemeral",
+                "text": "최근 올린 요청서를 찾지 못했습니다.\n"
+                        "양식을 먼저 붙여넣은 뒤 /접수 를 입력해 주세요."}
+
+    item, message = prepare(form_text, channel=channel, user_id=user,
+                            tickets=repo, customers=CRM)
+    if item is None:
+        return {"responseType": "ephemeral", "text": message}
+
+    INTAKE.put(channel, user, item)
+    return build_form_confirm(message, f"{channel}.{user}")
+
+
 def handle_interactive(payload: dict) -> dict:
     """버튼 클릭 → 업무 상태 변경 → 목록을 그 자리에서 다시 그린다."""
+    form = parse_form_action(payload)
+    if form:
+        return _handle_form_action(form)
+
     req = parse_action(payload)
     if not req:
         return build_error("처리할 수 없는 요청입니다.")
@@ -139,14 +197,13 @@ def handle_interactive(payload: dict) -> dict:
     # 완료는 방에 공지한다. ephemeral 결과는 누른 사람만 보므로 요청자가 모른다.
     # 수락·되돌리기는 처리자 본인의 일이라 굳이 방을 울리지 않는다.
     if req.action == ACTION_DONE:
-        _announce(req, subject)
-        _finish_async(req.task_id)
+        _finish_async(req)
 
     return build_result(req, subject, target, tasks=tasks)
 
 
-def _finish_async(task_id: str) -> None:
-    """요청자 개인 통보 + 폴링 중복 방지 표식. 클릭 응답 뒤로 뺀다.
+def _finish_async(req) -> None:
+    """완료 공지 + 요청자 개인 통보 + 중복 방지 표식. 클릭 응답 뒤로 뺀다.
 
     봇 공지는 대화방에 남지만 그건 **읽지 않으면 모르는** 알림이다. 요청자가
     평소 알림을 보는 곳(Dooray! News, 또는 1:1)까지 닿아야 "그거 처리됐나요?"가
@@ -160,19 +217,25 @@ def _finish_async(task_id: str) -> None:
     """
     def run():
         try:
-            task = repo.get(task_id)
+            task = repo.get(req.task_id)
         except Exception as e:
             print(f"    업무 조회 실패: {e}")
             return
 
-        reply = reply_for_task(task, task_url=task_url(repo, task_id))
-        if reply:
-            _notify_requester(reply)
+        # 이미 통보된 건이면 아무것도 하지 않는다.
+        # 지난 목록에 남아 있던 [완료]를 다시 눌러도 공지가 또 나가면 안 된다.
+        reply = reply_for_task(task, task_url=task_url(repo, req.task_id))
+        if reply is None:
+            print("    이미 통보된 건 — 공지 생략")
+            return
+
+        _announce(req, task.get("subject") or "")
+        _notify_requester(reply)
 
         # 표식은 통보를 보낸 뒤에 남긴다. 순서가 반대면 통보 실패 시
         # 폴링마저 건너뛰어 아무도 모르는 채로 끝난다.
         try:
-            repo.mark_notified(task_id)
+            repo.mark_notified(req.task_id)
         except Exception as e:
             print(f"    통보 표식 실패: {e}")
     threading.Thread(target=run, daemon=True).start()
@@ -213,7 +276,38 @@ def _announce(req, subject: str) -> None:
         print(f"    완료 공지 실패: {e}")
 
 
-ROUTES = {"/command": handle_command, "/interactive": handle_interactive}
+def _handle_form_action(form) -> dict:
+    """접수 확인 버튼 → 업무 생성 또는 폐기."""
+    channel, _, user = form.key.partition(".")
+    if form.action != ACTION_CREATE:
+        INTAKE.drop(channel, user)
+        return build_form_result("요청을 취소했습니다.")
+
+    item = INTAKE.take(channel, user)
+    if item is None:
+        return build_form_result("확인 시간이 지났습니다. 다시 /접수 해주세요.")
+
+    text = create(item, repo, announce=_announce_new_request)
+    return build_form_result(text)
+
+
+def _announce_new_request(subject: str, task_url: str | None) -> None:
+    """접수 사실을 기술 지원 방에 알린다. 다른 방에서 낸 요청이 묻히지 않게."""
+    if not SUPPORT_CHANNEL or messenger is None:
+        return
+    lines = ["🆕 새 기술지원 요청이 등록되었습니다.", subject]
+    if task_url:
+        lines.append(task_url)
+    try:
+        messenger.send(SUPPORT_CHANNEL, "\n".join(lines))
+        print(f"    기술 지원 방 알림 → {subject}")
+    except Exception as e:
+        print(f"    기술 지원 방 알림 실패: {e}")
+
+
+ROUTES = {"/command": handle_command,
+          "/intake": handle_intake,
+          "/interactive": handle_interactive}
 
 
 class Handler(BaseHTTPRequestHandler):
