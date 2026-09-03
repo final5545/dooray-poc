@@ -43,6 +43,7 @@ from crm.client import (                                 # noqa: E402
     HttpCustomerRepository,
 )
 from crm.service import handle_message as crm_handle     # noqa: E402
+from support.channels import channel_for_member, direct_channels  # noqa: E402
 from routing import RouteConfigError, parse_routes       # noqa: E402
 from support.completion import handle_news, news_card    # noqa: E402
 from support.llm import OpenAICompatExtractor            # noqa: E402
@@ -141,6 +142,7 @@ class DoorayClient:
             "Content-Type": "application/json",
         })
         self.member_id = None
+        self._direct_cache = None
 
     # --- REST ---
 
@@ -179,16 +181,32 @@ class DoorayClient:
         res.raise_for_status()
         return res.json().get("result", {}).get("id", "")
 
-    def send_news(self, member_id: str, text: str,
-                  attachments: list[dict] | None = None) -> str:
-        """그 사람의 Dooray! News로 알림을 넣는다.
+    def _directs(self) -> dict[str, str]:
+        """{상대 memberId: 1:1 채널 ID}. 한 번 받아 캐시한다."""
+        if self._direct_cache is None:
+            try:
+                rows = self._session.get(
+                    f"{API_BASE}/messenger/v1/channels", timeout=30
+                ).json().get("result") or []
+            except Exception:
+                log.exception("채널 목록 조회 실패")
+                return {}
+            self._direct_cache = direct_channels(rows, self.member_id)
+            log.info("1:1 대화방 %d건 캐시", len(self._direct_cache))
+        return self._direct_cache
 
-        News는 개인 봇 채널이고 채널 ID가 곧 memberId다(support/notify.py).
-        Dooray는 업무 '상태 변경'에 자동 알림을 주지 않지만, 이 채널에 우리가
-        직접 넣는 것은 된다(2026-09-03 실측). 완료 통보가 대화방 답장에만
-        머무르지 않고 평소 알림을 보는 곳까지 도달한다.
+    def notify_member(self, member_id: str, text: str,
+                      attachments: list[dict] | None = None) -> bool:
+        """그 사람에게 알림을 도달시킨다. 보낼 곳이 없으면 False.
+
+        본인은 Dooray! News, 그 외는 1:1 대화방으로 간다.
+        왜 그렇게 갈리는지는 support/channels.py 참조.
         """
-        return self.send_message(member_id, text, attachments)
+        channel = channel_for_member(member_id, self.member_id, self._directs())
+        if not channel:
+            return False
+        self.send_message(channel, text, attachments)
+        return True
 
 
 def extract_text(content: dict) -> str:
@@ -272,10 +290,13 @@ def _notify_completion(client: DoorayClient, reply) -> None:
     if not card:
         return              # 요청자 미상 — 이 줄이 없던 시절의 티켓
     try:
-        client.send_news(reply.requester_id, card["text"], card["attachments"])
-        log.info("News 통보 → member=%s", reply.requester_id)
+        sent = client.notify_member(reply.requester_id, card["text"], card["attachments"])
+        if sent:
+            log.info("개인 통보 → member=%s", reply.requester_id)
+        else:
+            log.info("개인 통보 생략 — 보낼 곳 없음 (member=%s)", reply.requester_id)
     except Exception:
-        log.exception("News 통보 실패 (member=%s)", reply.requester_id)
+        log.exception("개인 통보 실패 (member=%s)", reply.requester_id)
 
 
 def _handle_news_frame(client: DoorayClient, frame: dict) -> None:
