@@ -35,6 +35,19 @@ def direct_channels(rows: list[dict], me: str) -> dict[str, str]:
     return out
 
 
+def me_from_channels(rows: list[dict]) -> str | None:
+    """채널 목록 → 내 memberId.
+
+    각 채널 객체에 me.member.organizationMemberId 가 들어 있다(실측). 덕분에
+    소켓 토큰을 새로 발급하거나 별도 설정을 두지 않고도 목록 1회로 알 수 있다.
+    """
+    for c in rows or []:
+        mid = ((c.get("me") or {}).get("member") or {}).get("organizationMemberId")
+        if mid:
+            return mid
+    return None
+
+
 def channel_for_member(member_id: str, me: str, directs: dict[str, str]) -> str | None:
     """그 사람에게 알림을 넣을 채널. 보낼 곳이 없으면 None.
 

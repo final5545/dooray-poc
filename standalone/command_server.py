@@ -31,6 +31,12 @@ from support.command import (           # noqa: E402
     build_ticket_list,
     parse_action,
 )
+from support.channels import (          # noqa: E402
+    channel_for_member,
+    direct_channels,
+    me_from_channels,
+)
+from support.completion import news_card, reply_for_task, task_url  # noqa: E402
 from support.repository import DoorayTicketRepository  # noqa: E402
 
 APP_TOKEN = os.getenv("DOORAY_APP_TOKEN", "")
@@ -39,6 +45,46 @@ PROJECT = os.getenv("DOORAY_SUPPORT_PROJECT", "")
 DOMAIN = os.getenv("DOORAY_DOMAIN", "infomax.dooray.com")
 
 repo = DoorayTicketRepository(TOKEN, PROJECT, domain=DOMAIN) if TOKEN and PROJECT else None
+
+
+class Messenger:
+    """요청자 개인에게 알림을 보내는 최소 클라이언트.
+
+    본인은 Dooray! News, 남은 1:1 대화방으로 간다. 왜 그렇게 갈리는지는
+    support/channels.py 참조. 채널 목록 1회로 내 memberId와 1:1 방을 한꺼번에
+    얻어 캐시한다 — 소켓 토큰을 새로 발급할 필요가 없다.
+    """
+
+    def __init__(self, token: str):
+        self._s = requests.Session()
+        self._s.headers.update({"Authorization": f"dooray-api {token}",
+                                "Content-Type": "application/json"})
+        self._me = None
+        self._directs = None
+
+    def _load(self) -> None:
+        if self._directs is not None:
+            return
+        rows = self._s.get("https://api.dooray.com/messenger/v1/channels",
+                           timeout=15).json().get("result") or []
+        self._me = me_from_channels(rows)
+        self._directs = direct_channels(rows, self._me)
+        print(f"  채널 캐시 : 나={self._me}  1:1 {len(self._directs)}건")
+
+    def channel_for(self, member_id: str) -> str | None:
+        self._load()
+        return channel_for_member(member_id, self._me, self._directs)
+
+    def send(self, channel: str, text: str, attachments: list | None = None) -> None:
+        body = {"text": text}
+        if attachments:
+            body["attachments"] = attachments
+        r = self._s.post(f"https://api.dooray.com/messenger/v1/channels/{channel}/logs",
+                         json=body, timeout=15)
+        r.raise_for_status()
+
+
+messenger = Messenger(TOKEN) if TOKEN else None
 
 
 def _authorized(payload: dict) -> bool:
@@ -94,25 +140,58 @@ def handle_interactive(payload: dict) -> dict:
     # 수락·되돌리기는 처리자 본인의 일이라 굳이 방을 울리지 않는다.
     if req.action == ACTION_DONE:
         _announce(req, subject)
-        _mark_notified_async(req.task_id)
+        _finish_async(req.task_id)
 
     return build_result(req, subject, target, tasks=tasks)
 
 
-def _mark_notified_async(task_id: str) -> None:
-    """통보 표식을 백그라운드로 남긴다.
+def _finish_async(task_id: str) -> None:
+    """요청자 개인 통보 + 폴링 중복 방지 표식. 클릭 응답 뒤로 뺀다.
 
-    완료 감지 폴링(에이전트)이 같은 사실을 또 알리지 않게 하는 표식이다.
-    조회+수정 2회가 드는데 클릭 응답을 그만큼 늦출 이유가 없어 뒤로 뺀다.
-    폴링 주기가 분 단위라 이 몇백 ms의 틈이 문제될 일은 없다.
+    봇 공지는 대화방에 남지만 그건 **읽지 않으면 모르는** 알림이다. 요청자가
+    평소 알림을 보는 곳(Dooray! News, 또는 1:1)까지 닿아야 "그거 처리됐나요?"가
+    사라진다 — 기획서 §1의 목표다.
+
+    원래 이 통보는 에이전트의 폴링이 맡았는데, 폴링을 건너뛰게 만든 이상
+    여기서 대신 보낸다. 덕분에 5분을 기다리지 않고 즉시 간다.
+
+    조회·발신·수정으로 API 몇 번이 드므로 응답 경로에서 빼낸다. 폴링 주기가
+    분 단위라 이 몇백 ms의 틈은 문제되지 않는다.
     """
     def run():
         try:
+            task = repo.get(task_id)
+        except Exception as e:
+            print(f"    업무 조회 실패: {e}")
+            return
+
+        reply = reply_for_task(task, task_url=task_url(repo, task_id))
+        if reply:
+            _notify_requester(reply)
+
+        # 표식은 통보를 보낸 뒤에 남긴다. 순서가 반대면 통보 실패 시
+        # 폴링마저 건너뛰어 아무도 모르는 채로 끝난다.
+        try:
             repo.mark_notified(task_id)
         except Exception as e:
-            # 실패하면 폴링이 한 번 더 알릴 뿐, 처리 자체는 이미 성공했다.
             print(f"    통보 표식 실패: {e}")
     threading.Thread(target=run, daemon=True).start()
+
+
+def _notify_requester(reply) -> None:
+    """요청자 개인에게 완료를 알린다. 보낼 곳이 없으면 조용히 넘어간다."""
+    card = news_card(reply)
+    if not card or messenger is None:
+        return              # 요청자 미상 — requester 줄이 없던 시절의 티켓
+    try:
+        channel = messenger.channel_for(reply.requester_id)
+        if not channel:
+            print(f"    개인 통보 생략 — 보낼 곳 없음 (member={reply.requester_id})")
+            return
+        messenger.send(channel, card["text"], card["attachments"])
+        print(f"    개인 통보 → member={reply.requester_id}")
+    except Exception as e:
+        print(f"    개인 통보 실패: {e}")
 
 
 def _announce(req, subject: str) -> None:

@@ -5,7 +5,11 @@
     내 News         → 200
     1:1 대화방      → 200
 """
-from support.channels import channel_for_member, direct_channels
+from support.channels import (
+    channel_for_member,
+    direct_channels,
+    me_from_channels,
+)
 
 ME = "3267267451433100066"        # 정원석
 OTHER = "3362258975191542304"     # 정시욱
@@ -63,3 +67,22 @@ class TestChannelForMember:
     def test_요청자를_모르면_보낼_곳이_없다(self):
         assert channel_for_member(None, ME, self.DIRECTS) is None
         assert channel_for_member("", ME, self.DIRECTS) is None
+
+
+class TestMeFromChannels:
+    """채널 목록에 내 memberId가 실려 온다 — 소켓 토큰을 새로 발급할 필요가 없다."""
+
+    def test_me_필드에서_내_ID를_읽는다(self):
+        rows = [{"id": "c1", "type": "direct",
+                 "me": {"member": {"organizationMemberId": ME}}}]
+        assert me_from_channels(rows) == ME
+
+    def test_단체방에서도_읽힌다(self):
+        rows = [{"id": "g1", "type": "private",
+                 "me": {"member": {"organizationMemberId": ME}}}]
+        assert me_from_channels(rows) == ME
+
+    def test_없으면_None(self):
+        assert me_from_channels([{"id": "c1", "type": "direct"}]) is None
+        assert me_from_channels([]) is None
+        assert me_from_channels(None) is None
