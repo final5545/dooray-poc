@@ -29,12 +29,17 @@ services:
       - redis
     deploy:
       replicas: 1
+      # 이미지를 로컬에서 빌드하므로 그 노드에 고정한다.
+      # 레지스트리에 올리면 이 제약은 빼도 된다.
+      placement:
+        constraints:
+          - node.hostname == ai-node-1
       restart_policy:
         condition: any
         delay: 5s
       labels:
         - "traefik.enable=true"
-        - "traefik.docker.network=redis"
+        - "traefik.swarm.network=redis"
         - "traefik.http.routers.dooraycmd.rule=Host(`dooray.infomaxai.com`)"
         - "traefik.http.routers.dooraycmd.entrypoints=websecure"
         - "traefik.http.routers.dooraycmd.tls=true"
