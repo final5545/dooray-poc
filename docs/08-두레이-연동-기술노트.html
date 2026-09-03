@@ -1,0 +1,523 @@
+<title>두레이 연동 기술노트</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@500;600&family=IBM+Plex+Sans+KR:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+:root{
+  --paper:#EEF1F5; --surface:#FFFFFF; --surface-2:#E4E9F0;
+  --ink:#151C28; --ink-soft:#596373; --ink-faint:#8A93A2;
+  --line:#D3DAE4; --line-soft:#E2E7EE;
+  --accent:#2B4CC4; --accent-soft:#E8ECFA;
+  --amber:#8F5F14; --amber-bg:#F7EEDC;
+  --green:#256040; --green-bg:#DFEEE5;
+  --red:#9B2C2C; --red-bg:#F7E4E4;
+  --shadow:0 1px 2px rgba(21,28,40,.05), 0 4px 14px rgba(21,28,40,.05);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0F141B; --surface:#171E27; --surface-2:#1F2833;
+    --ink:#E3E9F1; --ink-soft:#98A3B4; --ink-faint:#6B7688;
+    --line:#2B3541; --line-soft:#232C37;
+    --accent:#8AA2F8; --accent-soft:#1E2843;
+    --amber:#DCA75A; --amber-bg:#2E2618;
+    --green:#72C294; --green-bg:#162C21;
+    --red:#E08585; --red-bg:#2E1B1B;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0F141B; --surface:#171E27; --surface-2:#1F2833;
+  --ink:#E3E9F1; --ink-soft:#98A3B4; --ink-faint:#6B7688;
+  --line:#2B3541; --line-soft:#232C37;
+  --accent:#8AA2F8; --accent-soft:#1E2843;
+  --amber:#DCA75A; --amber-bg:#2E2618;
+  --green:#72C294; --green-bg:#162C21;
+  --red:#E08585; --red-bg:#2E1B1B;
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  font-weight:300; line-height:1.72; font-size:15px; -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:860px;margin:0 auto;padding:56px 24px 96px;display:flex;flex-direction:column;gap:48px}
+
+.masthead{display:flex;flex-direction:column;gap:13px;padding-bottom:30px;border-bottom:2px solid var(--ink)}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink-faint);font-weight:500}
+h1{font-family:"Hahmlet",serif;font-weight:600;font-size:clamp(29px,5vw,40px);
+  line-height:1.2;letter-spacing:-.01em;margin:0;text-wrap:balance}
+.lede{font-size:16px;color:var(--ink-soft);max-width:62ch;margin:0}
+.meta{display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:4px;
+  font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-faint)}
+.meta b{font-weight:500;color:var(--ink-soft)}
+
+section{display:flex;flex-direction:column;gap:18px}
+h2{font-family:"Hahmlet",serif;font-weight:600;font-size:23px;line-height:1.3;
+  margin:0;display:flex;align-items:baseline;gap:11px;text-wrap:balance}
+h2 .num{font-family:"IBM Plex Mono",monospace;font-size:12.5px;font-weight:500;
+  color:var(--accent);letter-spacing:.05em;flex:none}
+h3{font-family:"IBM Plex Sans KR",sans-serif;font-weight:600;font-size:14px;margin:0}
+p{margin:0;max-width:66ch}
+.sub{color:var(--ink-soft)}
+strong{font-weight:600}
+code{font-family:"IBM Plex Mono",monospace;font-size:.88em;
+  background:var(--surface-2);padding:.1em .38em;border-radius:3px}
+
+pre{margin:0;background:var(--surface);border:1px solid var(--line);
+  border-left:3px solid var(--ink-faint);border-radius:0 6px 6px 0;
+  padding:13px 15px;overflow-x:auto;font-family:"IBM Plex Mono",monospace;
+  font-size:12.5px;line-height:1.8;color:var(--ink)}
+pre .c{color:var(--ink-faint)}
+
+figure{margin:0;display:flex;flex-direction:column;gap:12px;
+  background:var(--surface);border:1px solid var(--line);border-radius:8px;
+  padding:24px 22px 18px;box-shadow:var(--shadow)}
+figure svg{max-width:100%;height:auto;display:block;color:var(--ink)}
+figcaption{font-size:12.5px;color:var(--ink-soft);text-align:center;line-height:1.6}
+.dwrap{overflow-x:auto}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:520px}
+th,td{text-align:left;padding:9px 14px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+tr:last-child td{border-bottom:0}
+th{font-weight:600;font-size:11px;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-faint);font-family:"IBM Plex Mono",monospace;background:var(--surface-2);
+  border-bottom:1px solid var(--line)}
+td.mono,th.mono{font-family:"IBM Plex Mono",monospace;font-size:12.5px}
+td.sub{color:var(--ink-soft)}
+td.yes{color:var(--green);font-weight:500}
+td.no{color:var(--red);font-weight:500}
+
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:6px;
+  padding:15px 16px;display:flex;flex-direction:column;gap:10px}
+.box.ok{border-left:3px solid var(--green)}
+.box.no{border-left:3px solid var(--red)}
+.box h3{display:flex;align-items:center;gap:8px}
+.box ul{gap:7px}
+.box li{font-size:13.5px;color:var(--ink-soft)}
+.box li b{color:var(--ink);font-weight:600}
+
+.note{border-left:3px solid var(--amber);background:var(--amber-bg);
+  padding:12px 15px;border-radius:0 5px 5px 0;font-size:13.5px}
+.note.plain{border-left-color:var(--ink-faint);background:var(--surface-2)}
+.note b{font-weight:600}
+
+ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;max-width:66ch}
+li::marker{color:var(--ink-faint)}
+ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;max-width:66ch}
+ol::marker{color:var(--ink-faint)}
+
+footer{border-top:1px solid var(--line);padding-top:24px;font-size:12.5px;
+  color:var(--ink-faint);display:flex;flex-direction:column;gap:5px}
+footer .mono{font-family:"IBM Plex Mono",monospace}
+
+@media print{
+  body{background:#fff}
+  .wrap{max-width:none;padding:0;gap:30px}
+  figure,.tablewrap,pre,.box{break-inside:avoid;box-shadow:none}
+}
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">연합인포맥스 AI부 · 2026.09.03</div>
+    <h1>두레이 연동 기술노트</h1>
+    <p class="lede">AI 프리미엄 라이선스 없이 Dooray 봇을 만들며 알아낸 것. 전부 실제로 돌려보고 확인한 내용이며, 막혔던 자리를 그대로 남겼습니다.</p>
+    <div class="meta">
+      <span><b>대상</b> 소켓 · 슬래시 커맨드 · 업무 API</span>
+      <span><b>코드</b> github.com/final5545/dooray-poc</span>
+    </div>
+  </header>
+
+  <!-- ============ 결론 ============ -->
+  <section>
+    <h2>결론부터</h2>
+    <p>공식 <strong>Extension Agent</strong>는 AI 프리미엄 라이선스가 있어야 합니다. 그런데 필요가 없었습니다.</p>
+
+    <div class="note plain">
+      <b>Dooray 소켓 모드의 인증은 에이전트 단위가 아니라 사람(멤버) 단위입니다.</b>
+      개인 액세스 토큰으로 소켓을 열 수 있고, 그 순간부터 그 계정이 보는 모든 대화가 흘러들어옵니다.
+    </div>
+
+    <div class="cols">
+      <div class="box ok">
+        <h3>라이선스 없이 되는 것</h3>
+        <ul>
+          <li><b>메시지 수신</b> — 소켓 모드(아웃바운드)</li>
+          <li><b>발신 · 인용 답장</b> — 메신저 API</li>
+          <li><b>업무 등록 · 상태 변경 · 본문 수정</b></li>
+          <li><b>슬래시 커맨드와 버튼</b> — 연동 서비스 앱</li>
+          <li><b>봇 이름으로 발신</b> — 호출 맥락 안에서</li>
+          <li><b>내 Dooray! News 알림</b></li>
+          <li><b>남에게 개인 알림</b> — 1:1 대화방</li>
+        </ul>
+      </div>
+      <div class="box no">
+        <h3>못 넘은 것</h3>
+        <ul>
+          <li><b>남의 Dooray! News에 쓰기</b> — 그 채널의 멤버가 아님. 시스템 봇 권한이 필요합니다</li>
+          <li><b>아무 때나 먼저 말 거는 봇</b> — 토큰이 호출마다 발급됨</li>
+          <li><b>일반 메시지의 버튼 클릭</b> — 어느 앱 것인지 Dooray가 모름</li>
+          <li><b>여러 줄 슬래시 커맨드</b> — 개행이 들어가면 일반 메시지가 됨</li>
+          <li><b>상태 변경 자동 알림</b> — Dooray가 보내지 않음</li>
+        </ul>
+      </div>
+    </div>
+
+    <p><strong>못 넘은 것은 사실상 첫 줄 하나뿐이고, 그마저 1:1 대화방으로 대체됩니다.</strong> 나머지 넷은 우회 설계로 모두 해결했습니다.</p>
+  </section>
+
+  <!-- ============ 소켓 ============ -->
+  <section>
+    <h2><span class="num">01</span>소켓 붙기 — 토큰이 전부다</h2>
+
+<pre><span class="c">POST</span> https://api.dooray.com/common/v1/socket-mode/tokens
+     Authorization: dooray-api {개인 액세스 토큰}
+     {}                                          <span class="c">← 본문은 빈 객체</span>
+
+→ { accessToken, tenantId, organizationMemberId }
+
+<span class="c">WebSocket</span>
+wss://{테넌트}/messenger/v5/ws/{tenantId}/{organizationMemberId}
+     Authorization: Bearer {accessToken}</pre>
+
+    <p><code>organizationMemberId</code>는 <strong>내 멤버 ID</strong>입니다. 뒤에서 계속 쓰입니다.</p>
+
+    <h3>수명이 1시간 — 만료 전에 스스로 끊어야 한다</h3>
+    <p><code>accessToken</code>은 JWT입니다. <strong>SDK는 연결이 끊긴 뒤에야 재발급</strong>하는데, 그러면 만료 순간부터 재연결까지 메시지를 놓칩니다. JWT의 <code>exp</code>를 직접 읽어 만료 2분 전에 우리가 먼저 끊었습니다.</p>
+
+    <figure>
+      <div class="dwrap">
+        <svg viewBox="0 0 800 210" role="img"
+             aria-label="소켓 토큰은 발급 후 약 1시간 뒤 만료되는데, 만료 2분 전에 스스로 끊고 재발급해 공백 없이 이어간다">
+          <defs>
+            <marker id="tk" viewBox="0 0 10 10" refX="9" refY="5"
+                    markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <polygon points="0,0 10,5 0,10" fill="currentColor"/>
+            </marker>
+            <marker id="tka" viewBox="0 0 10 10" refX="9" refY="5"
+                    markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <polygon points="0,0 10,5 0,10" fill="#2B4CC4"/>
+            </marker>
+          </defs>
+
+          <!-- 시간 축 -->
+          <line x1="60" y1="120" x2="740" y2="120" stroke="currentColor" stroke-width="1.4" marker-end="url(#tk)"/>
+          <text x="748" y="124" font-size="11" fill="currentColor" opacity=".55">시간</text>
+
+          <!-- 발급 -->
+          <line x1="100" y1="96" x2="100" y2="144" stroke="currentColor" stroke-width="1.6"/>
+          <text x="100" y="86" text-anchor="middle" font-size="11.5" font-weight="600" fill="currentColor">토큰 발급</text>
+          <text x="100" y="164" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".6">소켓 연결</text>
+
+          <!-- 유효 구간 -->
+          <rect x="100" y="110" width="480" height="20" fill="#2B4CC4" opacity=".13"/>
+          <text x="340" y="124" text-anchor="middle" font-size="11" fill="#2B4CC4">유효 — 약 1시간</text>
+
+          <!-- 선제 갱신 -->
+          <line x1="580" y1="96" x2="580" y2="144" stroke="#2B4CC4" stroke-width="2"/>
+          <text x="580" y="86" text-anchor="middle" font-size="11.5" font-weight="600" fill="#2B4CC4">exp − 120초</text>
+          <text x="580" y="164" text-anchor="middle" font-size="10.5" fill="#2B4CC4">우리가 먼저 끊는다</text>
+          <text x="580" y="180" text-anchor="middle" font-size="10.5" fill="#2B4CC4" opacity=".8">→ 즉시 재발급</text>
+
+          <!-- 만료 -->
+          <line x1="660" y1="104" x2="660" y2="136" stroke="currentColor" stroke-width="1.4" stroke-dasharray="3 3"/>
+          <text x="660" y="96" text-anchor="middle" font-size="11" fill="currentColor" opacity=".6">exp</text>
+
+          <!-- SDK 비교 -->
+          <path d="M660 136 V172 H700" fill="none" stroke="currentColor" stroke-width="1.2"
+                stroke-dasharray="4 3" marker-end="url(#tk)"/>
+          <text x="706" y="176" font-size="10.5" fill="currentColor" opacity=".55">SDK는 여기서야 재발급</text>
+
+          <path d="M580 60 H620" fill="none" stroke="#2B4CC4" stroke-width="1.6" marker-end="url(#tka)"/>
+          <text x="628" y="64" font-size="10.5" fill="#2B4CC4" opacity=".85">공백 없음</text>
+
+          <text x="60" y="30" font-size="11.5" font-weight="600" fill="currentColor">소켓 토큰의 일생</text>
+        </svg>
+      </div>
+      <figcaption>만료를 기다리면 그 사이 메시지를 놓친다. 2분 전에 스스로 끊고 새 토큰으로 다시 붙는다.</figcaption>
+    </figure>
+
+<pre>payload = accessToken.split(".")[1]
+payload += "=" * (-len(payload) % 4)          <span class="c"># base64 패딩 복원</span>
+exp = json.loads(base64.urlsafe_b64decode(payload))["exp"]
+ttl = max(exp - time.time() - 120, 60)</pre>
+
+    <h3>한 토큰에 소켓 하나</h3>
+    <p>같은 토큰으로 두 번째 소켓을 열면 <code>1008 AGENT_ALREADY_CONNECTED</code>로 거절당합니다. <strong>재연결 간격을 종료 사유별로 달리해야 합니다.</strong> 구분하지 않으면 1008을 맞고 즉시 재시도하는 뜨거운 루프에 빠집니다.</p>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>종료 사유</th><th>재연결</th></tr></thead>
+        <tbody>
+          <tr><td class="sub">토큰 갱신 (계획된 종료)</td><td class="mono">즉시</td></tr>
+          <tr><td class="sub"><code>1008</code> 중복 접속</td><td class="mono">15초 대기</td></tr>
+          <tr><td class="sub">그 외</td><td class="mono">지수 백오프</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ 프레임 ============ -->
+  <section>
+    <h2><span class="num">02</span>프레임 읽기 — 내가 보낸 걸 내가 받는다</h2>
+
+    <p>개인 계정 소켓이라 <strong>우리가 API로 보낸 응답도 우리에게 되돌아옵니다.</strong> 그대로 두면 무한 루프입니다. 그렇다고 "내가 보낸 것"을 전부 거르면 <strong>내가 친 명령도 못 받습니다.</strong></p>
+
+    <figure>
+      <div class="dwrap">
+        <svg viewBox="0 0 780 250" role="img"
+             aria-label="수신한 프레임은 발신자가 나인지, content.token이 있는지 두 조건으로 갈린다. 내가 보냈고 토큰이 없으면 우리가 API로 보낸 응답이므로 폐기한다">
+          <defs>
+            <marker id="fr" viewBox="0 0 10 10" refX="9" refY="5"
+                    markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <polygon points="0,0 10,5 0,10" fill="currentColor"/>
+            </marker>
+          </defs>
+
+          <rect x="20" y="98" width="150" height="54" rx="6" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <text x="95" y="122" text-anchor="middle" font-size="12.5" font-weight="600" fill="currentColor">수신 프레임</text>
+          <text x="95" y="140" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".65">channelLog</text>
+
+          <line x1="170" y1="125" x2="234" y2="125" stroke="currentColor" stroke-width="1.4" marker-end="url(#fr)"/>
+
+          <!-- 분기 1 -->
+          <polygon points="330,80 420,125 330,170 240,125" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <text x="330" y="121" text-anchor="middle" font-size="11.5" fill="currentColor">발신자가</text>
+          <text x="330" y="137" text-anchor="middle" font-size="11.5" fill="currentColor">나인가?</text>
+
+          <path d="M330 80 V44 H520" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#fr)"/>
+          <text x="344" y="62" font-size="10.5" fill="currentColor" opacity=".65">아니오</text>
+
+          <line x1="420" y1="125" x2="484" y2="125" stroke="currentColor" stroke-width="1.4" marker-end="url(#fr)"/>
+          <text x="452" y="116" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".65">예</text>
+
+          <!-- 분기 2 -->
+          <polygon points="576,80 668,125 576,170 484,125" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <text x="576" y="121" text-anchor="middle" font-size="11.5" fill="currentColor">content.token</text>
+          <text x="576" y="137" text-anchor="middle" font-size="11.5" fill="currentColor">이 있나?</text>
+
+          <path d="M576 80 V44 H660" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#fr)"/>
+          <text x="590" y="62" font-size="10.5" fill="currentColor" opacity=".65">있음</text>
+
+          <path d="M576 170 V206 H660" fill="none" stroke="#9B2C2C" stroke-width="1.6" marker-end="url(#fr)"/>
+          <text x="590" y="192" font-size="10.5" fill="#9B2C2C">없음</text>
+
+          <text x="520" y="30" font-size="12.5" font-weight="600" fill="currentColor">처리한다</text>
+          <text x="520" y="48" font-size="10.5" fill="currentColor" opacity=".6">사람이 앱에서 친 메시지</text>
+
+          <text x="668" y="210" font-size="12.5" font-weight="600" fill="#9B2C2C">폐기</text>
+          <text x="668" y="228" font-size="10.5" fill="#9B2C2C" opacity=".8">우리가 API로 보낸 응답</text>
+        </svg>
+      </div>
+      <figcaption>사람이 앱에서 친 메시지에는 <code>content.token</code>(UUID)이 붙고, API 발신에는 붙지 않는다. 그 차이 하나로 루프를 끊는다.</figcaption>
+    </figure>
+
+    <h3><code>content.type</code> 실측값</h3>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th class="mono">값</th><th>뜻</th><th>주의</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">0</td><td>일반 메시지</td><td class="sub">—</td></tr>
+          <tr><td class="mono">1</td><td>시스템 (봇 초대·퇴장)</td><td class="sub">무시</td></tr>
+          <tr><td class="mono">2</td><td>봇 알림 (Dooray! News)</td><td class="sub">별도 처리</td></tr>
+          <tr><td class="mono">4</td><td>파일 첨부</td><td class="sub"><code>content.file</code></td></tr>
+          <tr><td class="mono">10</td><td>답글</td><td class="sub"><strong><code>text</code>가 JSON 문자열로 이중 인코딩</strong>. 한 겹 벗겨야 함</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note">
+      <b>화이트리스트가 필수입니다.</b> 소켓에는 초대 개념이 없어 그 계정이 참여 중인 <strong>모든 대화방</strong>이 흘러들어옵니다(우리 계정은 250개). 처리할 채널을 명시하지 않으면 전 대화 내용이 로그에 쏟아집니다.
+    </div>
+  </section>
+
+  <!-- ============ News ============ -->
+  <section>
+    <h2><span class="num">03</span>Dooray! News의 정체</h2>
+
+    <p>News는 <strong>개인 봇 채널</strong>이고, <strong>채널 ID가 그 사람의 memberId와 같습니다.</strong> 일반 대화방 목록에는 나오지 않습니다.</p>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>발신 대상</th><th>결과</th><th>이유</th></tr></thead>
+        <tbody>
+          <tr><td>내 News</td><td class="yes">200</td><td class="sub">내가 그 채널의 멤버</td></tr>
+          <tr><td><strong>남의 News</strong></td><td class="no">500</td><td class="sub"><code>CHANNEL_NOT_JOINED_MEMBER_ERROR</code></td></tr>
+          <tr><td>남과의 1:1 대화방</td><td class="yes">200</td><td class="sub">둘 다 참여 중</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Dooray-Bot이 모두의 News에 쓰는 것은 <strong>시스템 봇 권한</strong>이라 개인 토큰으로는 흉내 낼 수 없습니다. 우회로가 아니라 권한의 벽입니다. 그래서 <strong>본인이면 News, 남이면 1:1</strong>로 갈라 보냅니다.</p>
+  </section>
+
+  <!-- ============ 알림 규칙 ============ -->
+  <section>
+    <h2><span class="num">04</span>알림 규칙 — 기획서 전제가 틀렸다</h2>
+
+    <p>기획서는 "완료되면 알림이 간다"를 전제하고 있었는데, 여러 조합을 만들어 확인해 보니 그렇지 않았습니다.</p>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>사건</th><th>알림</th></tr></thead>
+        <tbody>
+          <tr><td>업무 <strong>등록</strong></td><td class="yes">간다</td></tr>
+          <tr><td>담당자·참조자 <strong>추가</strong></td><td class="yes">간다</td></tr>
+          <tr><td><strong>상태 변경</strong> (접수 → 완료)</td><td class="no">안 간다</td></tr>
+          <tr><td>내가 한 행동</td><td class="no">나에게는 안 온다</td></tr>
+          <tr><td>내가 <strong>작성자</strong>인 업무</td><td class="no">나에게는 안 온다</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note">
+      <b>작성자는 참조자가 될 수 없습니다.</b> 봇이 작성자인 구조에서 요청자를 참조자로 넣으면 <code>users.cc</code>가 <strong>빈 배열</strong>로 돌아옵니다. 오류도 없이 조용히 무시됩니다.
+    </div>
+
+    <p>상태 변경에 알림이 없으므로 <strong>완료 감지는 폴링</strong>입니다. 스냅샷 비교 방식이라 주기는 <strong>지연 시간만 결정하고 누락 여부는 결정하지 않습니다.</strong> 단, 생성 직후 첫 폴링 전에 완료되면 "처음 보는데 이미 완료"로 판단해 누락되므로, 티켓을 만든 즉시 스냅샷에 등록해야 합니다.</p>
+  </section>
+
+  <!-- ============ 슬래시 커맨드 ============ -->
+  <section>
+    <h2><span class="num">05</span>슬래시 커맨드 — 버튼을 쓰려면</h2>
+
+    <h3>등록 경로 (찾기 어려웠다)</h3>
+    <p><strong>메신저 → 좌측 상단 내 이름 → 슬래시 커맨드 연동.</strong> 개인 설정이나 관리자 화면이 아니라 <strong>메신저 안</strong>에 있습니다. <code>Request URL</code>(커맨드)과 <code>Interactive Message Request URL</code>(버튼 클릭) <strong>둘 다</strong> 넣어야 하고, <strong>대화방에 커맨드를 추가하는 단계</strong>를 빠뜨리면 보이지 않습니다.</p>
+
+    <h3>토큰 두 개를 헷갈리지 말 것</h3>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th class="mono">필드</th><th>정체</th><th>쓰임</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">appToken</td><td class="sub">앱 설정 화면의 고정값</td><td class="sub">요청이 진짜인지 <strong>검증만</strong></td></tr>
+          <tr><td class="mono">cmdToken</td><td class="sub"><strong>호출마다 새로 발급</strong></td><td class="sub"><code>responseUrl</code>에 이미 박혀 있음</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><code>appToken</code>으로 hook URL을 만들어 쏘면 <code>INTEGRATION_COMMAND_CALL_NOT_EXIST_ERROR</code>로 거절당합니다. <code>responseUrl</code>로는 <strong>앱 이름(= 봇)으로</strong> 메시지를 보낼 수 있지만 <strong>그 호출 맥락 안에서만</strong>입니다. 버튼 클릭도 하나의 호출이므로, 클릭 시점에는 봇으로 말할 수 있습니다.</p>
+
+    <h3>두 가지 결정적 제약</h3>
+    <p class="sub">설계를 바꿔야 했던 지점입니다.</p>
+    <div class="cols">
+      <div class="box no">
+        <h3>① 일반 메시지의 버튼은 죽어 있다</h3>
+        <ul>
+          <li>메신저 API로 보낸 메시지에 <code>actions</code>를 넣으면 <b>버튼이 그려지긴 합니다.</b> 그런데 눌러도 아무 일이 없습니다.</li>
+          <li>진짜 업무를 바꾸는 값을 실어 눌러도 상태가 그대로였습니다.</li>
+          <li>개인 토큰으로 보낸 메시지의 버튼이 <b>어느 앱 것인지 Dooray가 알 방법이 없기</b> 때문입니다.</li>
+        </ul>
+      </div>
+      <div class="box no">
+        <h3>② 여러 줄 커맨드는 커맨드가 아니다</h3>
+        <ul>
+          <li><code>/커맨드</code> 뒤에 Shift+Enter로 개행하면 <b>일반 메시지로</b> 전송됩니다.</li>
+          <li>여러 줄 양식을 커맨드 인자로 넘길 수 없습니다.</li>
+          <li><b>우회</b> — 양식은 일반 메시지로 올리고, 커맨드가 <code>GET /channels/{id}/logs</code>로 방의 로그에서 그 사람의 마지막 양식을 찾아 읽습니다.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="note plain">
+      <b>버튼이 실제로 동작하는 곳은 슬래시 커맨드 응답뿐입니다.</b> 버튼이 필요하면 처음부터 슬래시 커맨드로 설계하세요. 일반 메시지에 버튼을 달았다가 갈아엎게 됩니다.
+    </div>
+  </section>
+
+  <!-- ============ 업무 API ============ -->
+  <section>
+    <h2><span class="num">06</span>업무 API — 세 가지만 알면 된다</h2>
+    <ol>
+      <li><strong>목록 응답에 필요한 게 다 들어 있습니다.</strong> <code>GET /posts</code> 한 건에 <code>id · number · subject · workflowClass</code>가 모두 있어 <strong>건별 조회(N+1)가 불필요</strong>합니다. 우리도 걷어내고 나서 응답이 0.6초로 떨어졌습니다.</li>
+      <li><strong>워크플로는 이름이 아니라 <code>class</code>로 찾아야 합니다.</strong> 상태 이름은 프로젝트마다 다릅니다(<code>할 일</code>/<code>등록</code>). <code>registered</code> · <code>working</code> · <code>closed</code>로 찾으세요.</li>
+      <li><strong>업무에 임의 필드를 붙일 수 없습니다.</strong> 완료 알림을 받았을 때 "어느 대화방 어느 메시지에 답할지"를 담을 곳이 없어 <strong>본문에 한 줄로</strong> 남겼습니다.</li>
+    </ol>
+<pre>[요청출처] channel={채널ID} message={메시지ID} requester={요청자ID}</pre>
+    <p class="sub">삭제 API는 없습니다 — <code>DELETE /posts/{id}</code>는 404입니다. 화면에서 지워야 합니다.</p>
+  </section>
+
+  <!-- ============ 인바운드 ============ -->
+  <section>
+    <h2><span class="num">07</span>인바운드 — Dooray가 우리를 호출한다</h2>
+    <p>소켓은 <strong>아웃바운드</strong>입니다. 우리가 붙습니다. 그런데 슬래시 커맨드와 버튼은 <strong>Dooray가 우리 서버를 호출</strong>합니다. 공개 접근 가능한 HTTPS URL이 필요합니다.</p>
+    <p><strong>ngrok은 사내망에서 안 됩니다.</strong> Fortinet TLS 가로채기 때문에 터널 자체가 403으로 막히고, 터널에 도달한 요청이 0건이었습니다. 대신 <code>ai-node</code>에 공인 IP와 Traefik, Let's Encrypt, 와일드카드 DNS가 이미 있어 <strong>새 서버도 DNS 작업도 필요 없었습니다.</strong></p>
+  </section>
+
+  <!-- ============ 함정 ============ -->
+  <section>
+    <h2>막혔던 자리 모음</h2>
+    <p class="sub">증상만 보고는 원인을 짐작하기 어려웠던 것들입니다.</p>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>증상</th><th>원인</th><th>해결</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="mono">CERTIFICATE_VERIFY_FAILED</td>
+            <td class="sub">macOS 시스템 CA 스토어가 불완전. <strong>SDK도 이걸 빠뜨림</strong></td>
+            <td class="sub"><code>sslopt={"ca_certs": certifi.where()}</code></td>
+          </tr>
+          <tr>
+            <td class="mono">self signed certificate<br>in certificate chain</td>
+            <td class="sub">사내망 Fortinet TLS 가로채기</td>
+            <td class="sub"><code>urllib</code> 대신 <code>requests</code></td>
+          </tr>
+          <tr>
+            <td class="mono">1008 재시도 폭주</td>
+            <td class="sub">종료 사유를 구분하지 않아 즉시 재연결</td>
+            <td class="sub">1008은 15초 대기</td>
+          </tr>
+          <tr>
+            <td class="sub">답글·파일이 무시됨</td>
+            <td class="sub"><code>content.type != 0</code> 으로 걸러버림</td>
+            <td class="sub"><code>{0, 4, 10}</code> 허용 + 이중 JSON 해제</td>
+          </tr>
+          <tr>
+            <td class="sub">완료 통보가 누락</td>
+            <td class="sub">첫 폴링 전에 완료돼 "이미 완료"로 판단</td>
+            <td class="sub">생성 즉시 스냅샷에 등록</td>
+          </tr>
+          <tr>
+            <td class="mono">curl: (60) self-signed<br>certificate</td>
+            <td class="sub">Traefik v3.1에서 <code>traefik.docker.network</code> → <code>traefik.swarm.network</code> 로 라벨명이 바뀜. 라우터 미등록</td>
+            <td class="sub">라벨 교체</td>
+          </tr>
+          <tr>
+            <td class="mono">No such image</td>
+            <td class="sub">로컬 빌드 이미지가 다른 노드에 배치됨</td>
+            <td class="sub"><code>node.hostname</code> 제약</td>
+          </tr>
+          <tr>
+            <td class="sub">완료 공지가 두 번</td>
+            <td class="sub">버튼 처리와 폴링이 같은 사건에 각자 반응</td>
+            <td class="sub">본문에 <code>[통보완료]</code> 표식</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ 다음 사람에게 ============ -->
+  <section>
+    <h2>다음에 이걸 하는 사람에게</h2>
+    <ol>
+      <li><strong>소켓부터 열어 보세요.</strong> 개인 액세스 토큰 하나로 5분이면 됩니다. 여기가 되면 나머지는 다 됩니다.</li>
+      <li><strong><code>content.token</code>을 먼저 이해하세요.</strong> 루프 방지의 핵심이고, 모르면 무한 루프를 겪고 나서야 알게 됩니다.</li>
+      <li><strong>화이트리스트를 먼저 거세요.</strong> 안 그러면 전 대화방이 로그에 쏟아집니다.</li>
+      <li><strong>버튼이 필요하면 처음부터 슬래시 커맨드로 설계하세요.</strong></li>
+      <li><strong>알림을 기대하지 마세요.</strong> 상태 변경에는 알림이 없습니다. 폴링이거나, 버튼으로 바꿔 클릭을 곧 이벤트로 삼거나 둘 중 하나입니다.</li>
+    </ol>
+  </section>
+
+  <footer>
+    <div>연합인포맥스 AI부 · Dooray Extension Agent PoC</div>
+    <div class="mono">github.com/final5545/dooray-poc · 실측 기준일 2026-09-03</div>
+    <div class="mono">전체 판은 docs/08-두레이-연동-기술노트.md · 시연 흐름은 docs/09-시연-흐름.html</div>
+  </footer>
+
+</div>
