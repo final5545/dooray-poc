@@ -17,7 +17,7 @@ from dataclasses import dataclass
 
 from .notify import NewsEvent, parse_news
 from .repository import TicketRepository
-from .ticket import parse_origin
+from .ticket import parse_origin, parse_requester
 
 log = logging.getLogger(__name__)
 
@@ -30,6 +30,32 @@ class CompletionReply:
     channel: str
     message_id: str
     text: str
+    requester_id: str | None = None     # 이 사람의 Dooray! News로도 알린다
+    task_id: str | None = None
+    task_url: str | None = None
+    subject: str | None = None
+
+
+def news_card(reply: CompletionReply) -> dict | None:
+    """완료 통보 → Dooray! News 발신 페이로드. 보낼 곳이 없으면 None.
+
+    News는 개인 봇 채널이고 **채널 ID가 그 사람의 memberId와 같다**(notify.py).
+    두레이가 상태 변경에 알림을 주지 않으므로 자동 알림은 기대할 수 없지만,
+    우리가 그 채널로 직접 넣는 것은 된다(2026-09-03 실측, HTTP 200).
+    기존 Dooray-Bot 알림과 같은 카드로 보이도록 attachments를 쓴다.
+    """
+    if not reply.requester_id:
+        return None
+
+    card: dict = {"color": "green"}
+    if reply.subject:
+        card["title"] = reply.subject
+    if reply.task_url:
+        card["titleLink"] = reply.task_url
+    return {
+        "text": reply.text.split("\n", 1)[0],       # 첫 줄이 곧 알림 제목
+        "attachments": [card],
+    }
 
 
 # 티켓 제목은 "{고객사} {유형} [{상태} {날짜}]" 형태다.
@@ -47,7 +73,8 @@ def _format(actor_name: str | None, subject: str) -> str:
     return "\n".join(lines)
 
 
-def reply_for_task(task: dict, actor_name: str | None = None) -> CompletionReply | None:
+def reply_for_task(task: dict, actor_name: str | None = None,
+                   task_url: str | None = None) -> CompletionReply | None:
     """업무 상세 → 회신 지시. 통보 대상이 아니면 None.
 
     News 알림 경로와 폴링 경로가 공유하는 판정 로직이다.
@@ -66,10 +93,15 @@ def reply_for_task(task: dict, actor_name: str | None = None) -> CompletionReply
         return None
 
     channel, message_id = origin
+    subject = task.get("subject") or ""
     return CompletionReply(
         channel=channel,
         message_id=message_id,
-        text=_format(actor_name, task.get("subject") or ""),
+        text=_format(actor_name, subject),
+        requester_id=parse_requester(body),
+        task_id=task.get("id"),
+        task_url=task_url,
+        subject=_STATUS_SUFFIX.sub("", subject).strip() or None,
     )
 
 
@@ -104,4 +136,15 @@ def handle_news(frame: dict, tickets: TicketRepository,
         return None
 
     # 완료된 건만 통보한다. 담당자 변경·태그 추가 등 다른 알림도 같은 채널로 온다.
-    return reply_for_task(task, event.actor_name)
+    return reply_for_task(task, event.actor_name, task_url(tickets, event.task_id))
+
+
+def task_url(tickets: TicketRepository, task_id: str) -> str | None:
+    """업무 링크. 저장소가 못 만들어 주면 None — 링크 없이 통보한다."""
+    fn = getattr(tickets, "task_url", None)
+    if not callable(fn) or not task_id:
+        return None
+    try:
+        return fn(task_id)
+    except Exception:
+        return None

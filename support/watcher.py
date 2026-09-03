@@ -15,7 +15,7 @@ import os
 import threading
 from dataclasses import dataclass
 
-from .completion import CompletionReply, reply_for_task
+from .completion import CompletionReply, reply_for_task, task_url
 from .repository import TicketRepository
 
 log = logging.getLogger(__name__)
@@ -132,7 +132,7 @@ class CompletionWatcher:
             except Exception:
                 log.exception("업무 조회 실패: %s", task_id)
                 continue
-            reply = reply_for_task(task)
+            reply = reply_for_task(task, task_url=task_url(self.tickets, task_id))
             if reply:
                 replies.append(reply)
 

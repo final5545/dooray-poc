@@ -44,7 +44,7 @@ from crm.client import (                                 # noqa: E402
 )
 from crm.service import handle_message as crm_handle     # noqa: E402
 from routing import RouteConfigError, parse_routes       # noqa: E402
-from support.completion import handle_news               # noqa: E402
+from support.completion import handle_news, news_card    # noqa: E402
 from support.llm import OpenAICompatExtractor            # noqa: E402
 from support.llm_anthropic import AnthropicExtractor      # noqa: E402
 from support.repository import DoorayTicketRepository    # noqa: E402
@@ -162,15 +162,33 @@ class DoorayClient:
         res.raise_for_status()
         return res.json().get("result", {}).get("id", "")
 
-    def send_message(self, channel: str, text: str) -> str:
-        """채널에 메시지 전송. 반환값은 생성된 메시지 ID."""
+    def send_message(self, channel: str, text: str,
+                     attachments: list[dict] | None = None) -> str:
+        """채널에 메시지 전송. 반환값은 생성된 메시지 ID.
+
+        attachments를 주면 제목·링크가 붙은 카드로 렌더링된다.
+        """
+        payload: dict = {"text": text}
+        if attachments:
+            payload["attachments"] = attachments
         res = self._session.post(
             f"{API_BASE}/messenger/v1/channels/{channel}/logs",
-            json={"text": text},
+            json=payload,
             timeout=30,
         )
         res.raise_for_status()
         return res.json().get("result", {}).get("id", "")
+
+    def send_news(self, member_id: str, text: str,
+                  attachments: list[dict] | None = None) -> str:
+        """그 사람의 Dooray! News로 알림을 넣는다.
+
+        News는 개인 봇 채널이고 채널 ID가 곧 memberId다(support/notify.py).
+        Dooray는 업무 '상태 변경'에 자동 알림을 주지 않지만, 이 채널에 우리가
+        직접 넣는 것은 된다(2026-09-03 실측). 완료 통보가 대화방 답장에만
+        머무르지 않고 평소 알림을 보는 곳까지 도달한다.
+        """
+        return self.send_message(member_id, text, attachments)
 
 
 def extract_text(content: dict) -> str:
@@ -205,12 +223,12 @@ def handle(client: DoorayClient, channel: str, text: str, sender: str,
     if route == "crm":
         reply = crm_handle(text, CRM_REPO)
     elif route == "support":
-        # 참조자는 지정하지 않는다.
-        #   Dooray는 상태 변경에 알림을 보내지 않으므로 참조자 지정의 원래 목적
-        #   (완료 통보)이 무효다. 남는 건 등록 시 중복 알림뿐이라 뺐다.
-        #   대신 접수 회신에 업무 링크를 넣어 요청자가 직접 열 수 있게 한다.
-        #   봇 전용 계정이 생겨 작성자가 분리되면 재검토 대상.
+        # requester_id는 참조자 지정용이 아니다(cc_requester 기본 False).
+        #   Dooray는 상태 변경에 알림을 보내지 않아 참조자 지정의 원래 목적인
+        #   완료 통보가 무효다. 대신 이 ID를 티켓 본문에 남겨 두었다가,
+        #   완료됐을 때 그 사람의 Dooray! News로 우리가 직접 넣는다.
         reply = support_handle(text, TICKET_REPO, CRM_REPO, llm=LLM,
+                               requester_id=sender,
                                origin_channel=channel,
                                origin_message=content.get("id"),
                                on_created=WATCHER.track if WATCHER else None)
@@ -234,11 +252,30 @@ def _poll_completions(client: DoorayClient) -> None:
             log.exception("폴링 실패")
             continue
         for reply in result.replies:
-            log.info("완료 통보 → ch=%s msg=%s", reply.channel, reply.message_id)
-            try:
-                client.reply_to_message(reply.channel, reply.message_id, reply.text)
-            except Exception:
-                log.exception("완료 통보 전송 실패")
+            _notify_completion(client, reply)
+
+
+def _notify_completion(client: DoorayClient, reply) -> None:
+    """완료 1건 통보 — 원 요청에 인용 답장하고, 요청자의 News에도 넣는다.
+
+    둘은 독립적이다. 대화방 답장은 요청했던 맥락에 결과를 남기고,
+    News는 그 사람이 평소 알림을 보는 곳에 도달시킨다. 한쪽이 실패해도
+    다른 쪽은 보낸다.
+    """
+    log.info("완료 통보 → ch=%s msg=%s", reply.channel, reply.message_id)
+    try:
+        client.reply_to_message(reply.channel, reply.message_id, reply.text)
+    except Exception:
+        log.exception("완료 통보 전송 실패")
+
+    card = news_card(reply)
+    if not card:
+        return              # 요청자 미상 — 이 줄이 없던 시절의 티켓
+    try:
+        client.send_news(reply.requester_id, card["text"], card["attachments"])
+        log.info("News 통보 → member=%s", reply.requester_id)
+    except Exception:
+        log.exception("News 통보 실패 (member=%s)", reply.requester_id)
 
 
 def _handle_news_frame(client: DoorayClient, frame: dict) -> None:
@@ -252,12 +289,7 @@ def _handle_news_frame(client: DoorayClient, frame: dict) -> None:
         return
     if not reply:
         return
-
-    log.info("완료 통보 → ch=%s msg=%s", reply.channel, reply.message_id)
-    try:
-        client.reply_to_message(reply.channel, reply.message_id, reply.text)
-    except Exception:
-        log.exception("완료 통보 전송 실패")
+    _notify_completion(client, reply)
 
 
 def dispatch(client: DoorayClient, frame: dict) -> None:

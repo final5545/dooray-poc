@@ -15,8 +15,20 @@ DEFAULT_STATUS = "접수"     # AI 자동 등록 시점의 상태 (기획서 §4
 # 원 요청의 좌표를 본문에 남긴다.
 # 완료 알림(Dooray! News)을 받았을 때 "어느 대화방 어느 메시지에 답할지"를
 # 알아야 하는데, Dooray 업무에는 그 정보를 담을 별도 필드가 없다.
+#
+# requester는 요청자의 organizationMemberId다. 완료됐을 때 그 사람의
+# Dooray! News로 알림을 보내는 데 쓴다. 업무의 users.cc에서 읽으면 될 것
+# 같지만, Dooray는 **작성자를 참조자로 넣지 못하게** 막는다(2026-09-03 실측:
+# 봇이 곧 작성자인 지금 구조에서 cc가 빈 배열로 돌아온다). 그래서 본문에
+# 직접 남긴다.
 ORIGIN_LINE = "[요청출처] channel={channel} message={message}"
 _ORIGIN_RE = re.compile(r"\[요청출처\]\s*channel=(\S+)\s+message=(\S+)")
+_REQUESTER_RE = re.compile(r"\[요청출처\][^\n]*?\srequester=(\S+)")
+
+
+def build_origin_line(channel: str, message: str, requester: str | None = None) -> str:
+    line = ORIGIN_LINE.format(channel=channel, message=message)
+    return f"{line} requester={requester}" if requester else line
 
 
 def parse_origin(body: str) -> tuple[str, str] | None:
@@ -25,6 +37,14 @@ def parse_origin(body: str) -> tuple[str, str] | None:
         return None
     m = _ORIGIN_RE.search(body)
     return (m.group(1), m.group(2)) if m else None
+
+
+def parse_requester(body: str) -> str | None:
+    """티켓 본문 → 요청자 memberId. 이 줄이 없던 시절의 티켓이면 None."""
+    if not body:
+        return None
+    m = _REQUESTER_RE.search(body)
+    return m.group(1) if m else None
 
 
 def build_title(req: SupportRequest, customer_name: str | None = None,
@@ -47,7 +67,8 @@ def build_title(req: SupportRequest, customer_name: str | None = None,
 def build_body(req: SupportRequest, customer_name: str | None = None,
                detail: str | None = None, contact: str | None = None,
                origin_channel: str | None = None,
-               origin_message: str | None = None) -> str:
+               origin_message: str | None = None,
+               origin_requester: str | None = None) -> str:
     """기획서 §5 'AI 분석 결과' 형태의 본문.
 
     detail / contact 는 LLM 보강 결과다(llm.py). 없으면 행을 생략한다.
@@ -68,6 +89,6 @@ def build_body(req: SupportRequest, customer_name: str | None = None,
 
     lines += ["", "[원문]", req.raw_text, ""]
     if origin_channel and origin_message:
-        lines.append(ORIGIN_LINE.format(channel=origin_channel, message=origin_message))
+        lines.append(build_origin_line(origin_channel, origin_message, origin_requester))
     lines.append("— AI 자동 등록 (기술지원 요청 자동화 PoC)")
     return "\n".join(lines)

@@ -25,6 +25,7 @@ def handle_request(text: str,
                    today: _dt.date | None = None,
                    llm: LLMExtractor | None = None,
                    requester_id: str | None = None,
+                   cc_requester: bool = False,
                    origin_channel: str | None = None,
                    origin_message: str | None = None,
                    on_created=None) -> str | None:
@@ -34,8 +35,11 @@ def handle_request(text: str,
     기술팀 대화방의 모든 메시지가 유입되므로 이 조기 반환이 1차 방어선이다.
 
     requester_id: 요청자의 organizationMemberId(메시지의 senderId).
-        참조자로 넣으면 요청자가 접수 사실을 Dooray 알림으로 바로 받는다.
-        ⚠️ 작성자는 참조자가 될 수 없다 — 봇이 작성자이므로 요청자는 참조 가능.
+        본문에 남겨 두었다가 완료됐을 때 그 사람의 Dooray! News로 알린다.
+    cc_requester: 요청자를 참조자로도 넣을지. 기본은 넣지 않는다.
+        참조는 '등록' 시점에만 알림을 만들고 상태 변경에는 아무 효과가 없어
+        (Dooray 기본 동작) 접수 회신과 겹치는 중복 알림만 남는다.
+        ⚠️ 작성자는 참조자가 될 수 없다 — 요청자와 봇이 같은 계정이면 무시된다.
     origin_channel / origin_message: 원 요청 메시지의 좌표.
         완료 알림을 받았을 때 이 대화방·메시지에 인용 답장한다.
     on_created: 티켓 생성 직후 postId로 호출된다.
@@ -70,11 +74,13 @@ def handle_request(text: str,
 
     subject = build_title(req, customer_name)
     body = build_body(req, customer_name, detail=enr.detail, contact=enr.contact,
-                      origin_channel=origin_channel, origin_message=origin_message)
+                      origin_channel=origin_channel, origin_message=origin_message,
+                      origin_requester=requester_id)
 
     try:
-        post_id = tickets.create(subject, body,
-                                 cc=[requester_id] if requester_id else None)
+        post_id = tickets.create(
+            subject, body,
+            cc=[requester_id] if (cc_requester and requester_id) else None)
     except Exception:
         log.exception("티켓 생성 실패")
         return "요청 등록 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
