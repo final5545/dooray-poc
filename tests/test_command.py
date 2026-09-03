@@ -2,6 +2,7 @@
 from support.command import (
     ACTION_ACCEPT,
     ACTION_DONE,
+    ACTION_UNDO,
     CALLBACK_TICKET,
     build_error,
     build_result,
@@ -39,9 +40,11 @@ class TestTicketList:
         acts = got["attachments"][1]["actions"]
         assert [a["text"] for a in acts] == ["완료"]
 
-    def test_버튼_값에_업무ID가_담긴다(self):
+    def test_버튼_값에_업무ID와_누를_당시_상태가_담긴다(self):
+        # 세 번째 칸이 되돌리기 목적지다
         got = build_ticket_list(TASKS)
-        assert got["attachments"][0]["actions"][0]["value"] == f"{ACTION_ACCEPT}/t1"
+        assert got["attachments"][0]["actions"][0]["value"] == \
+            f"{ACTION_ACCEPT}/t1/registered"
 
     def test_callbackId로_우리_버튼임을_표시(self):
         got = build_ticket_list(TASKS)
@@ -98,9 +101,9 @@ class TestResult:
 class TestResultRefresh:
     """버튼을 눌러도 목록이 남아 있어야 연속으로 처리할 수 있다."""
 
-    def _req(self, action, task_id):
+    def _req(self, action, task_id, prev_state="registered"):
         from support.command import ActionRequest
-        return ActionRequest(action=action, task_id=task_id)
+        return ActionRequest(action=action, task_id=task_id, prev_state=prev_state)
 
     def _after_accept(self):
         # t1을 수락한 뒤의 목록
@@ -111,40 +114,43 @@ class TestResultRefresh:
 
     def test_처리해도_목록이_남는다(self):
         got = self._after_accept()
-        assert len(got["attachments"]) == 2      # 사라지지 않는다
+        assert len(got["attachments"]) == 3      # 처리 결과 1 + 남은 2건
 
     def test_처리한_건의_상태가_바뀌어_보인다(self):
         got = self._after_accept()
-        assert "진행 중" in got["attachments"][0]["text"]
+        assert "진행 중" in got["attachments"][1]["text"]
 
     def test_처리한_건에_수락_버튼이_사라진다(self):
         got = self._after_accept()
-        acts = got["attachments"][0]["actions"]
+        acts = got["attachments"][1]["actions"]
         assert [a["text"] for a in acts] == ["완료"]
 
-    def test_무엇을_처리했는지_위에_알린다(self):
+    def test_무엇을_처리했는지_맨_위에_알린다(self):
         got = self._after_accept()
-        assert "진행 중" in got["text"] and TASKS[0]["subject"] in got["text"]
+        assert "진행 중" in got["attachments"][0]["text"]
+        assert TASKS[0]["subject"] in got["attachments"][0]["text"]
 
     def test_완료하면_목록에서_빠진다(self):
         after = [dict(t) for t in TASKS]
         after[0]["workflowClass"] = "closed"
         got = build_result(self._req(ACTION_DONE, "t1"),
                            after[0]["subject"], "closed", tasks=after)
-        titles = [a["title"] for a in got["attachments"]]
-        assert TASKS[0]["subject"] not in titles and len(titles) == 1
+        titles = [a.get("title") for a in got["attachments"]]
+        assert TASKS[0]["subject"] not in titles
+        assert len([t for t in titles if t]) == 1
 
     def test_마지막_건을_완료하면_안내만_남는다(self):
         got = build_result(self._req(ACTION_DONE, "t1"), "끝난 건", "closed",
                            tasks=[{"id": "t1", "workflowClass": "closed"}])
-        assert "없습니다" in got["text"] and "attachments" not in got
+        # 목록은 비지만 되돌리기 손잡이는 남아야 한다
+        assert "없습니다" in got["text"]
+        assert len(got["attachments"]) == 1 and got["attachments"][0]["actions"]
 
     def test_목록_재조회에_실패해도_결과는_알린다(self):
         # 상태 변경은 이미 성공했다. 화면 갱신 실패로 삼켜서는 안 된다.
         got = build_result(self._req(ACTION_DONE, "t1"), "한국거래소 SW 업그레이드",
                            "closed", tasks=None)
-        assert got["replaceOriginal"] is True
-        assert "완료" in got["text"] and "attachments" not in got
+        assert got["replaceOriginal"] is True and "완료" in got["text"]
 
     def test_그_자리에서_갈아끼운다(self):
         got = self._after_accept()
@@ -153,3 +159,93 @@ class TestResultRefresh:
     def test_오류도_같은_자리에서_알린다(self):
         got = build_error("업무를 찾을 수 없습니다.")
         assert got["replaceOriginal"] is True and "찾을 수 없" in got["text"]
+
+
+class TestUndo:
+    """완료 버튼을 잘못 눌렀을 때 되돌릴 수 있어야 한다.
+
+    완료하면 목록에서 사라지므로, 붙잡을 손잡이는 처리 결과 카드뿐이다.
+    되돌릴 목적지는 **누를 당시 상태**다 — 완료 버튼은 접수에서도 진행 중에서도
+    보이므로, 클릭 후에 조회해 봐야 이미 바뀐 뒤라 알 수 없다.
+    """
+
+    def _req(self, action, task_id="t1", prev_state="registered"):
+        from support.command import ActionRequest
+        return ActionRequest(action=action, task_id=task_id, prev_state=prev_state)
+
+    def _done_from(self, prev_state):
+        after = [{"id": "t1", "subject": "끝낸 건", "workflowClass": "closed"}]
+        return build_result(self._req(ACTION_DONE, prev_state=prev_state),
+                            "끝낸 건", "closed", tasks=after)
+
+    # --- 버튼이 달리는가 ---
+
+    def test_처리_결과에_되돌리기가_달린다(self):
+        acts = self._done_from("registered")["attachments"][0]["actions"]
+        assert len(acts) == 1 and acts[0]["text"].startswith("되돌리기")
+
+    def test_접수에서_완료했으면_접수로_되돌린다(self):
+        a = self._done_from("registered")["attachments"][0]["actions"][0]
+        assert a["value"] == f"{ACTION_UNDO}/t1/registered"
+        assert "접수" in a["text"]
+
+    def test_진행중에서_완료했으면_진행중으로_되돌린다(self):
+        # 같은 완료 버튼이라도 어디서 눌렀느냐에 따라 목적지가 다르다
+        a = self._done_from("working")["attachments"][0]["actions"][0]
+        assert a["value"] == f"{ACTION_UNDO}/t1/working"
+        assert "진행 중" in a["text"]
+
+    def test_수락도_되돌릴_수_있다(self):
+        got = build_result(self._req(ACTION_ACCEPT, prev_state="registered"),
+                           "수락한 건", "working",
+                           tasks=[{"id": "t1", "subject": "수락한 건",
+                                   "workflowClass": "working"}])
+        assert got["attachments"][0]["actions"][0]["value"] == \
+            f"{ACTION_UNDO}/t1/registered"
+
+    def test_되돌린_뒤에는_또_되돌리기를_달지_않는다(self):
+        # 목록에 다시 나타났으므로 거기서 누르면 된다
+        got = build_result(self._req(ACTION_UNDO, prev_state="registered"),
+                           "되살린 건", "registered",
+                           tasks=[{"id": "t1", "subject": "되살린 건",
+                                   "workflowClass": "registered"}])
+        assert "actions" not in got["attachments"][0]
+
+    def test_되돌렸다고_말한다(self):
+        got = build_result(self._req(ACTION_UNDO, prev_state="working"),
+                           "되살린 건", "working", tasks=[])
+        assert "되돌렸습니다" in got["attachments"][0]["text"]
+
+    def test_누를_당시_상태를_모르면_되돌리기가_없다(self):
+        # requester 줄이 없던 시절처럼, 옛 형식 버튼에서 온 클릭
+        got = build_result(self._req(ACTION_DONE, prev_state=None),
+                           "끝낸 건", "closed", tasks=[])
+        assert "actions" not in got["attachments"][0]
+
+    # --- 파싱과 목적지 ---
+
+    def _payload(self, value):
+        return {"callbackId": CALLBACK_TICKET, "actionValue": value,
+                "user": {"id": "u1"}, "channel": {"id": "c1"}}
+
+    def test_되돌리기_클릭을_파싱한다(self):
+        got = parse_action(self._payload(f"{ACTION_UNDO}/t1/working"))
+        assert got.action == ACTION_UNDO and got.prev_state == "working"
+
+    def test_되돌리기는_목적지가_없으면_무시(self):
+        assert parse_action(self._payload(f"{ACTION_UNDO}/t1")) is None
+
+    def test_모르는_상태는_무시(self):
+        # 남이 값을 바꿔 보내도 아무 상태로나 못 바꾼다
+        assert parse_action(self._payload(f"{ACTION_DONE}/t1/deleted")) is None
+
+    def test_칸이_너무_많으면_무시(self):
+        assert parse_action(self._payload(f"{ACTION_DONE}/t1/working/extra")) is None
+
+    def test_목적지는_동작이_결정한다(self):
+        assert parse_action(self._payload(f"{ACTION_DONE}/t1/working")).target_state \
+            == "closed"
+        assert parse_action(self._payload(f"{ACTION_ACCEPT}/t1/registered")).target_state \
+            == "working"
+        assert parse_action(self._payload(f"{ACTION_UNDO}/t1/registered")).target_state \
+            == "registered"

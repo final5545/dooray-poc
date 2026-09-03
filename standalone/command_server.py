@@ -22,7 +22,6 @@ sys.path.insert(0, _ROOT)
 load_dotenv(os.path.join(_ROOT, ".env"), override=True)
 
 from support.command import (           # noqa: E402
-    WORKFLOW_FOR,
     build_error,
     build_result,
     build_ticket_list,
@@ -64,7 +63,9 @@ def handle_interactive(payload: dict) -> dict:
     if repo is None:
         return build_error("서버 설정이 없습니다.")
 
-    target = WORKFLOW_FOR[req.action]
+    target = req.target_state          # 되돌리기는 버튼에 실려 온 이전 상태로 간다
+    if not target:
+        return build_error("처리할 수 없는 요청입니다.")
     try:
         wf_id = repo.workflow_id(target)
         if not wf_id:
