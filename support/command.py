@@ -80,15 +80,31 @@ def _buttons(task_id: str, state: str) -> list[dict]:
     return out
 
 
-def build_ticket_list(tasks: list[dict], title: str = "기술지원 요청") -> dict:
+def _payload(text: str, attachments: list[dict] | None, replace: bool) -> dict:
+    out: dict = {"responseType": "ephemeral", "text": text}   # 누른 사람에게만 보인다
+    if attachments:
+        out["attachments"] = attachments
+    if replace:
+        out["replaceOriginal"] = True
+    return out
+
+
+def build_ticket_list(tasks: list[dict], title: str = "기술지원 요청",
+                      notice: str | None = None, replace: bool = False) -> dict:
     """미완료 티켓 목록 → 커맨드 응답 페이로드.
 
-    tasks: [{"id", "subject", "workflowClass", "number"}, ...]
+    tasks:  [{"id", "subject", "workflowClass", "number"}, ...]
+    notice: 목록 위에 한 줄 덧붙인다(방금 처리한 결과 등).
+    replace: 원래 메시지를 그 자리에서 갈아끼운다.
     """
     open_tasks = [t for t in tasks if t.get("workflowClass") != "closed"]
-    if not open_tasks:
-        return {"responseType": "ephemeral", "text": "처리할 요청이 없습니다."}
+    head = [notice] if notice else []
 
+    if not open_tasks:
+        head.append("처리할 요청이 없습니다.")
+        return _payload("\n".join(head), None, replace)
+
+    head.append(f"{title} ({len(open_tasks)}건)")
     attachments = []
     for t in open_tasks:
         state = t.get("workflowClass") or "registered"
@@ -98,29 +114,33 @@ def build_ticket_list(tasks: list[dict], title: str = "기술지원 요청") -> 
             "text": f"현재 상태 : {LABEL_FOR.get(state, state)}",
             "actions": _buttons(str(t.get("id")), state),
         })
-
-    return {
-        "responseType": "ephemeral",       # 누른 사람에게만 보인다
-        "text": f"{title} ({len(open_tasks)}건)",
-        "attachments": attachments,
-    }
+    return _payload("\n".join(head), attachments, replace)
 
 
 def build_result(req: ActionRequest, subject: str, new_state: str,
-                 actor_name: str | None = None) -> dict:
+                 actor_name: str | None = None,
+                 tasks: list[dict] | None = None) -> dict:
     """상태 변경 후 원래 메시지를 그 자리에서 갱신한다.
 
+    tasks를 주면 **목록을 다시 그려서** 돌려준다. 한 건을 처리해도 나머지가
+    화면에 남아 있어야 연속으로 처리할 수 있다. 처리한 건은 상태가 바뀐 채로,
+    완료된 건은 목록에서 사라진 채로 보인다.
+
+    tasks가 None이면(목록 재조회 실패) 처리 결과만이라도 알린다.
     replaceOriginal=true 는 알림 없이 내용만 바꾼다.
     """
     label = LABEL_FOR.get(new_state, new_state)
+
+    if tasks is not None:
+        notice = f"✅ {subject} → {label}" if subject else f"✅ {label} 처리했습니다."
+        if actor_name:
+            notice += f"  (처리자 : {actor_name})"
+        return build_ticket_list(tasks, notice=notice, replace=True)
+
     lines = [f"{subject}", f"→ {label} 처리했습니다."]
     if actor_name:
         lines.append(f"처리자 : {actor_name}")
-    return {
-        "responseType": "ephemeral",
-        "replaceOriginal": True,
-        "text": "\n".join(lines),
-    }
+    return _payload("\n".join(lines), None, replace=True)
 
 
 def build_error(message: str) -> dict:

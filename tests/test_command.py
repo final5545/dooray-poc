@@ -81,12 +81,74 @@ class TestParseAction:
 
 
 class TestResult:
-    def test_원래_메시지를_갱신한다(self):
+    def _req(self, action=ACTION_DONE, task_id="t1"):
         from support.command import ActionRequest
-        req = ActionRequest(action=ACTION_DONE, task_id="t1")
-        got = build_result(req, "비엔케이자산운용 노후교체", "closed", "정시욱")
+        return ActionRequest(action=action, task_id=task_id)
+
+    def test_원래_메시지를_갱신한다(self):
+        got = build_result(self._req(), "비엔케이자산운용 노후교체", "closed", "정시욱")
         assert got["replaceOriginal"] is True
         assert "완료" in got["text"] and "정시욱" in got["text"]
+
+    def test_오류도_같은_자리에서_알린다(self):
+        got = build_error("업무를 찾을 수 없습니다.")
+        assert got["replaceOriginal"] is True and "찾을 수 없" in got["text"]
+
+
+class TestResultRefresh:
+    """버튼을 눌러도 목록이 남아 있어야 연속으로 처리할 수 있다."""
+
+    def _req(self, action, task_id):
+        from support.command import ActionRequest
+        return ActionRequest(action=action, task_id=task_id)
+
+    def _after_accept(self):
+        # t1을 수락한 뒤의 목록
+        after = [dict(t) for t in TASKS]
+        after[0]["workflowClass"] = "working"
+        return build_result(self._req(ACTION_ACCEPT, "t1"),
+                            after[0]["subject"], "working", tasks=after)
+
+    def test_처리해도_목록이_남는다(self):
+        got = self._after_accept()
+        assert len(got["attachments"]) == 2      # 사라지지 않는다
+
+    def test_처리한_건의_상태가_바뀌어_보인다(self):
+        got = self._after_accept()
+        assert "진행 중" in got["attachments"][0]["text"]
+
+    def test_처리한_건에_수락_버튼이_사라진다(self):
+        got = self._after_accept()
+        acts = got["attachments"][0]["actions"]
+        assert [a["text"] for a in acts] == ["완료"]
+
+    def test_무엇을_처리했는지_위에_알린다(self):
+        got = self._after_accept()
+        assert "진행 중" in got["text"] and TASKS[0]["subject"] in got["text"]
+
+    def test_완료하면_목록에서_빠진다(self):
+        after = [dict(t) for t in TASKS]
+        after[0]["workflowClass"] = "closed"
+        got = build_result(self._req(ACTION_DONE, "t1"),
+                           after[0]["subject"], "closed", tasks=after)
+        titles = [a["title"] for a in got["attachments"]]
+        assert TASKS[0]["subject"] not in titles and len(titles) == 1
+
+    def test_마지막_건을_완료하면_안내만_남는다(self):
+        got = build_result(self._req(ACTION_DONE, "t1"), "끝난 건", "closed",
+                           tasks=[{"id": "t1", "workflowClass": "closed"}])
+        assert "없습니다" in got["text"] and "attachments" not in got
+
+    def test_목록_재조회에_실패해도_결과는_알린다(self):
+        # 상태 변경은 이미 성공했다. 화면 갱신 실패로 삼켜서는 안 된다.
+        got = build_result(self._req(ACTION_DONE, "t1"), "한국거래소 SW 업그레이드",
+                           "closed", tasks=None)
+        assert got["replaceOriginal"] is True
+        assert "완료" in got["text"] and "attachments" not in got
+
+    def test_그_자리에서_갈아끼운다(self):
+        got = self._after_accept()
+        assert got["replaceOriginal"] is True and got["responseType"] == "ephemeral"
 
     def test_오류도_같은_자리에서_알린다(self):
         got = build_error("업무를 찾을 수 없습니다.")

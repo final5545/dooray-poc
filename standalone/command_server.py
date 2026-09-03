@@ -50,25 +50,14 @@ def handle_command(payload: dict) -> dict:
     if repo is None:
         return {"responseType": "ephemeral", "text": "서버 설정이 없습니다."}
     try:
-        states = repo.list_states()
+        tasks = repo.list_tasks()
     except Exception:
         return {"responseType": "ephemeral", "text": "업무 목록을 가져오지 못했습니다."}
-
-    tasks = []
-    for task_id, state in states.items():
-        if state == "closed":
-            continue
-        try:
-            d = repo.get(task_id)
-        except Exception:
-            continue
-        tasks.append({"id": task_id, "number": d.get("number"),
-                      "subject": d.get("subject"), "workflowClass": state})
     return build_ticket_list(tasks)
 
 
 def handle_interactive(payload: dict) -> dict:
-    """버튼 클릭 → 업무 상태 변경 → 메시지 갱신."""
+    """버튼 클릭 → 업무 상태 변경 → 목록을 그 자리에서 다시 그린다."""
     req = parse_action(payload)
     if not req:
         return build_error("처리할 수 없는 요청입니다.")
@@ -81,11 +70,21 @@ def handle_interactive(payload: dict) -> dict:
         if not wf_id:
             return build_error("해당 상태가 프로젝트에 없습니다.")
         repo.set_workflow(req.task_id, wf_id)
-        task = repo.get(req.task_id)
     except Exception:
         return build_error("상태를 변경하지 못했습니다. 잠시 후 다시 시도해 주세요.")
 
-    return build_result(req, task.get("subject") or "", target)
+    # 바뀐 뒤의 목록을 다시 읽어 화면을 갱신한다.
+    # 여기서 실패해도 상태 변경 자체는 이미 성공했으므로 결과는 알려야 한다.
+    try:
+        tasks = repo.list_tasks()
+    except Exception:
+        tasks = None
+
+    subject = ""
+    if tasks:
+        subject = next((t.get("subject") or "" for t in tasks
+                        if str(t.get("id")) == req.task_id), "")
+    return build_result(req, subject, target, tasks=tasks)
 
 
 ROUTES = {"/command": handle_command, "/interactive": handle_interactive}

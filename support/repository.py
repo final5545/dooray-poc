@@ -63,16 +63,22 @@ class DoorayTicketRepository:
         r.raise_for_status()
         return r.json().get("result") or {}
 
-    def list_states(self, size: int = 100) -> dict[str, str]:
-        """{업무ID: workflowClass} — 목록 1회 호출.
+    def list_tasks(self, size: int = 100) -> list[dict]:
+        """목록 1회 호출로 화면에 필요한 필드까지 전부 받는다.
 
-        목록 응답에 workflowClass가 이미 들어 있어 건별 조회가 필요 없다.
+        2026-09-03 실측: /posts 응답 한 건에 id·number·subject·workflowClass가
+        모두 들어 있다. 건별 상세 조회(N+1)를 할 이유가 없다.
         """
         r = requests.get(self._url("/posts"), headers=self._headers,
                          params={"size": size}, timeout=self.timeout)
         r.raise_for_status()
-        return {p["id"]: p.get("workflowClass")
-                for p in (r.json().get("result") or []) if p.get("id")}
+        return [{"id": p["id"], "number": p.get("number"),
+                 "subject": p.get("subject"), "workflowClass": p.get("workflowClass")}
+                for p in (r.json().get("result") or []) if p.get("id")]
+
+    def list_states(self, size: int = 100) -> dict[str, str]:
+        """{업무ID: workflowClass}. 완료 감지 폴링용."""
+        return {t["id"]: t["workflowClass"] for t in self.list_tasks(size)}
 
     def task_url(self, post_id: str) -> str:
         return f"https://{self.domain}/project/tasks/{post_id}"
@@ -119,6 +125,10 @@ class FakeTicketRepository:
 
     def get(self, post_id: str) -> dict:
         return self._rows.get(post_id, {})
+
+    def list_tasks(self) -> list[dict]:
+        return [{"id": k, "number": v.get("number"), "subject": v.get("subject"),
+                 "workflowClass": v.get("workflowClass")} for k, v in self._rows.items()]
 
     def list_states(self) -> dict[str, str]:
         return {k: v.get("workflowClass") for k, v in self._rows.items()}
