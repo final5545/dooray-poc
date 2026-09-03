@@ -1,0 +1,559 @@
+<title>기술지원 자동화 흐름</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@500;600&family=IBM+Plex+Sans+KR:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+:root{
+  --paper:#EEF1F5; --surface:#FFFFFF; --surface-2:#E4E9F0;
+  --ink:#151C28; --ink-soft:#596373; --ink-faint:#8A93A2;
+  --line:#D3DAE4; --line-soft:#E2E7EE;
+  --accent:#2B4CC4; --accent-soft:#E8ECFA;
+  --amber:#8F5F14; --amber-bg:#F7EEDC;
+  --teal:#15626A; --teal-bg:#DFEEF0;
+  --green:#256040; --green-bg:#DFEEE5;
+  --bubble-in:#EDEFF4; --bubble-out:#E3E7F7;
+  --shadow:0 1px 2px rgba(21,28,40,.05), 0 4px 14px rgba(21,28,40,.05);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0F141B; --surface:#171E27; --surface-2:#1F2833;
+    --ink:#E3E9F1; --ink-soft:#98A3B4; --ink-faint:#6B7688;
+    --line:#2B3541; --line-soft:#232C37;
+    --accent:#8AA2F8; --accent-soft:#1E2843;
+    --amber:#DCA75A; --amber-bg:#2E2618;
+    --teal:#63BDC6; --teal-bg:#152B2E;
+    --green:#72C294; --green-bg:#162C21;
+    --bubble-in:#212A35; --bubble-out:#232E4A;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0F141B; --surface:#171E27; --surface-2:#1F2833;
+  --ink:#E3E9F1; --ink-soft:#98A3B4; --ink-faint:#6B7688;
+  --line:#2B3541; --line-soft:#232C37;
+  --accent:#8AA2F8; --accent-soft:#1E2843;
+  --amber:#DCA75A; --amber-bg:#2E2618;
+  --teal:#63BDC6; --teal-bg:#152B2E;
+  --green:#72C294; --green-bg:#162C21;
+  --bubble-in:#212A35; --bubble-out:#232E4A;
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  font-weight:300; line-height:1.75; font-size:15px; -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:880px;margin:0 auto;padding:56px 24px 96px;display:flex;flex-direction:column;gap:56px}
+
+.masthead{display:flex;flex-direction:column;gap:14px;padding-bottom:32px;border-bottom:2px solid var(--ink)}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink-faint);font-weight:500}
+h1{font-family:"Hahmlet",serif;font-weight:600;font-size:clamp(30px,5.2vw,42px);
+  line-height:1.2;letter-spacing:-.01em;margin:0;text-wrap:balance}
+.lede{font-size:16px;color:var(--ink-soft);max-width:60ch;margin:0}
+.meta{display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:6px;
+  font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-faint)}
+.meta b{font-weight:500;color:var(--ink-soft)}
+
+section{display:flex;flex-direction:column;gap:20px}
+h2{font-family:"Hahmlet",serif;font-weight:600;font-size:24px;line-height:1.3;
+  margin:0;display:flex;align-items:baseline;gap:12px;text-wrap:balance}
+h2 .num{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:500;
+  color:var(--accent);letter-spacing:.05em;flex:none}
+h3{font-family:"IBM Plex Sans KR",sans-serif;font-weight:600;font-size:14px;margin:0;letter-spacing:.01em}
+p{margin:0;max-width:64ch}
+.sub{color:var(--ink-soft)}
+strong{font-weight:600}
+code{font-family:"IBM Plex Mono",monospace;font-size:.88em;
+  background:var(--surface-2);padding:.1em .38em;border-radius:3px}
+
+/* ---------- 그림 ---------- */
+figure{margin:0;display:flex;flex-direction:column;gap:12px;
+  background:var(--surface);border:1px solid var(--line);border-radius:8px;
+  padding:24px 22px 18px;box-shadow:var(--shadow)}
+figure svg{max-width:100%;height:auto;display:block;color:var(--ink)}
+figcaption{font-size:12.5px;color:var(--ink-soft);text-align:center;line-height:1.6}
+.dwrap{overflow-x:auto}
+
+/* ---------- 단계 ---------- */
+.steps{display:flex;flex-direction:column;gap:0;border:1px solid var(--line);
+  border-radius:6px;background:var(--surface);overflow:hidden}
+.step{display:grid;grid-template-columns:34px 1fr;gap:16px;padding:16px 18px;
+  border-bottom:1px solid var(--line-soft)}
+.step:last-child{border-bottom:0}
+.step .n{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:500;
+  color:var(--accent);padding-top:2px}
+.step .body{display:flex;flex-direction:column;gap:9px;min-width:0}
+.step h3{margin-bottom:1px}
+.step p{font-size:13.5px;color:var(--ink-soft)}
+.say{font-family:"IBM Plex Mono",monospace;font-size:12.5px;line-height:1.75;
+  background:var(--surface-2);border-radius:4px;padding:10px 12px;
+  white-space:pre-wrap;word-break:break-word;overflow-x:auto}
+.say.out{background:var(--bubble-out)}
+.who{font-size:11px;font-family:"IBM Plex Mono",monospace;color:var(--ink-faint);
+  letter-spacing:.06em;text-transform:uppercase}
+
+.pill{display:inline-flex;align-items:center;font-family:"IBM Plex Mono",monospace;
+  font-size:11px;font-weight:500;padding:2px 8px;border-radius:10px;letter-spacing:.02em}
+.pill.amber{background:var(--amber-bg);color:var(--amber)}
+.pill.teal{background:var(--teal-bg);color:var(--teal)}
+.pill.green{background:var(--green-bg);color:var(--green)}
+.pill.accent{background:var(--accent-soft);color:var(--accent)}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:460px}
+th,td{text-align:left;padding:9px 14px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+tr:last-child td{border-bottom:0}
+th{font-weight:600;font-size:11px;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-faint);font-family:"IBM Plex Mono",monospace;background:var(--surface-2);
+  border-bottom:1px solid var(--line)}
+td.mono{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;font-size:12.5px}
+td.sub{color:var(--ink-soft)}
+
+.note{border-left:3px solid var(--amber);background:var(--amber-bg);
+  padding:12px 15px;border-radius:0 5px 5px 0;font-size:13.5px;color:var(--ink)}
+.note.plain{border-left-color:var(--ink-faint);background:var(--surface-2)}
+.note b{font-weight:600}
+
+ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;max-width:64ch}
+li::marker{color:var(--ink-faint)}
+
+footer{border-top:1px solid var(--line);padding-top:24px;font-size:12.5px;
+  color:var(--ink-faint);display:flex;flex-direction:column;gap:5px}
+footer .mono{font-family:"IBM Plex Mono",monospace}
+
+@media (max-width:560px){ .step{grid-template-columns:1fr;gap:6px} }
+@media print{
+  body{background:#fff}
+  .wrap{max-width:none;padding:0;gap:34px}
+  figure,.steps,.tablewrap{break-inside:avoid;box-shadow:none}
+}
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">연합인포맥스 AI부 · PoC 시연</div>
+    <h1>기술지원 자동화 흐름</h1>
+    <p class="lede">고객정보 조회부터 요청 접수, 업무 등록, 처리, 완료 통보까지 한 바퀴. 사용자는 대화방을 벗어나지 않고, 결과는 요청했던 자리로 돌아옵니다.</p>
+    <div class="meta">
+      <span><b>기준일</b> 2026.09.03</span>
+      <span><b>대화방</b> CRM 조회 · 기술 지원 현황판</span>
+      <span><b>커맨드</b> /접수 · /처리</span>
+    </div>
+  </header>
+
+  <!-- ============ 한눈에 ============ -->
+  <section>
+    <h2>한눈에</h2>
+    <p>이 자동화의 핵심은 <strong>고리가 닫힌다는 것</strong>입니다. 대화방에서 출발한 요청이 두레이 업무가 되고, 처리 결과가 다시 그 대화방으로 돌아옵니다. "그거 처리됐나요?"를 물을 일이 없어집니다.</p>
+
+    <figure>
+      <div class="dwrap">
+        <svg viewBox="0 0 840 340" role="img"
+             aria-label="대화방에서 낸 요청이 에이전트를 거쳐 두레이 업무가 되고, 담당자가 버튼으로 처리하면 통보가 다시 그 대화방으로 돌아오는 닫힌 고리">
+          <defs>
+            <marker id="ar1" viewBox="0 0 10 10" refX="9" refY="5"
+                    markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <polygon points="0,0 10,5 0,10" fill="currentColor"/>
+            </marker>
+            <marker id="ar1a" viewBox="0 0 10 10" refX="9" refY="5"
+                    markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <polygon points="0,0 10,5 0,10" fill="#2B4CC4"/>
+            </marker>
+          </defs>
+
+          <!-- 상단 행 : 요청 → 등록 -->
+          <rect x="16" y="40" width="150" height="70" rx="6" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <text x="91" y="68" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">대화방</text>
+          <text x="91" y="88" text-anchor="middle" font-size="11.5" fill="currentColor" opacity=".7">요청서 작성</text>
+
+          <line x1="166" y1="75" x2="238" y2="75" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar1)"/>
+          <text x="202" y="66" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".65">소켓</text>
+
+          <rect x="238" y="40" width="164" height="70" rx="6" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <text x="320" y="68" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">에이전트</text>
+          <text x="320" y="88" text-anchor="middle" font-size="11.5" fill="currentColor" opacity=".7">CRM 조회 · 제목 조립</text>
+
+          <line x1="402" y1="75" x2="474" y2="75" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar1)"/>
+          <text x="438" y="66" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".65">등록</text>
+
+          <rect x="474" y="40" width="164" height="70" rx="6" fill="none" stroke="#2B4CC4" stroke-width="1.8"/>
+          <text x="556" y="68" text-anchor="middle" font-size="13" font-weight="600" fill="#2B4CC4">두레이 업무</text>
+          <text x="556" y="88" text-anchor="middle" font-size="11.5" fill="#2B4CC4" opacity=".8">기술 지원 현황판</text>
+
+          <!-- 오른쪽으로 내려가는 연결 -->
+          <path d="M638 75 H668 V190" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar1)"/>
+          <text x="678" y="135" font-size="10.5" fill="currentColor" opacity=".65">/처리</text>
+
+          <!-- 하단 행 : 처리 → 통보 -->
+          <rect x="536" y="190" width="164" height="70" rx="6" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <text x="618" y="218" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">커맨드 서버</text>
+          <text x="618" y="238" text-anchor="middle" font-size="11.5" fill="currentColor" opacity=".7">[수락] [완료] 클릭</text>
+
+          <!-- 상태 변경은 업무로 되돌아간다 -->
+          <path d="M556 190 V110" fill="none" stroke="#2B4CC4" stroke-width="1.4"
+                stroke-dasharray="4 3" marker-end="url(#ar1a)"/>
+          <text x="548" y="152" text-anchor="end" font-size="10.5" fill="#2B4CC4" opacity=".85">상태 변경</text>
+
+          <line x1="536" y1="225" x2="464" y2="225" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar1)"/>
+          <text x="500" y="216" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".65">통보</text>
+
+          <rect x="300" y="190" width="164" height="70" rx="6" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <text x="382" y="218" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">봇 공지 · 개인 알림</text>
+          <text x="382" y="238" text-anchor="middle" font-size="11.5" fill="currentColor" opacity=".7">방 · Dooray! News</text>
+
+          <!-- 고리를 닫는 화살표 -->
+          <path d="M300 225 H91 V110" fill="none" stroke="#2B4CC4" stroke-width="1.8" marker-end="url(#ar1a)"/>
+          <text x="196" y="216" text-anchor="middle" font-size="10.5" fill="#2B4CC4" opacity=".85">요청했던 그 자리로</text>
+
+          <text x="16" y="308" font-size="11" fill="currentColor" opacity=".55">사용자는 대화방을 벗어나지 않는다 — 나머지는 전부 뒤에서 돈다</text>
+        </svg>
+      </div>
+      <figcaption>요청이 업무가 되고 결과가 요청 자리로 돌아오는 닫힌 고리. 파란 선이 그 고리를 닫는 구간이다.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ============ 프로세스가 둘인 이유 ============ -->
+  <section>
+    <h2>왜 프로세스가 둘인가</h2>
+    <p>메시지를 <strong>받는 것</strong>과 버튼 클릭을 <strong>받는 것</strong>은 방향이 반대입니다. 그래서 프로세스가 둘로 나뉘어 있고, 시연 중 하나라도 멎으면 그쪽 기능만 조용히 사라집니다.</p>
+
+    <figure>
+      <div class="dwrap">
+        <svg viewBox="0 0 840 300" role="img"
+             aria-label="에이전트는 두레이로 나가는 아웃바운드 소켓을 열고, 커맨드 서버는 두레이가 들어오는 인바운드 요청을 받는다">
+          <defs>
+            <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5"
+                    markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <polygon points="0,0 10,5 0,10" fill="currentColor"/>
+            </marker>
+            <marker id="ar2b" viewBox="0 0 10 10" refX="9" refY="5"
+                    markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <polygon points="0,0 10,5 0,10" fill="#2B4CC4"/>
+            </marker>
+          </defs>
+
+          <!-- 두레이 -->
+          <rect x="340" y="20" width="160" height="260" rx="8" fill="none"
+                stroke="currentColor" stroke-width="1.6"/>
+          <text x="420" y="48" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">Dooray</text>
+          <text x="420" y="68" text-anchor="middle" font-size="11" fill="currentColor" opacity=".65">메신저 · 업무</text>
+
+          <!-- 왼쪽 : 에이전트 -->
+          <rect x="20" y="60" width="200" height="86" rx="6" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <text x="120" y="88" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">에이전트</text>
+          <text x="120" y="107" text-anchor="middle" font-size="11" fill="currentColor" opacity=".7">정원석 맥</text>
+          <text x="120" y="126" text-anchor="middle" font-size="11" fill="currentColor" opacity=".7">조회 · 접수 · 완료 감지</text>
+
+          <line x1="220" y1="94" x2="338" y2="94" stroke="currentColor" stroke-width="1.6" marker-end="url(#ar2)"/>
+          <text x="279" y="85" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".7">우리가 붙는다</text>
+          <text x="279" y="112" text-anchor="middle" font-size="10" fill="currentColor" opacity=".5">아웃바운드 소켓</text>
+
+          <!-- 오른쪽 : 커맨드 서버 -->
+          <rect x="620" y="60" width="200" height="86" rx="6" fill="none" stroke="#2B4CC4" stroke-width="1.8"/>
+          <text x="720" y="88" text-anchor="middle" font-size="13" font-weight="600" fill="#2B4CC4">커맨드 서버</text>
+          <text x="720" y="107" text-anchor="middle" font-size="11" fill="#2B4CC4" opacity=".8">ai-node-1</text>
+          <text x="720" y="126" text-anchor="middle" font-size="11" fill="#2B4CC4" opacity=".8">/처리 · /접수 · 버튼</text>
+
+          <line x1="618" y1="94" x2="504" y2="94" stroke="#2B4CC4" stroke-width="1.8"
+                marker-end="url(#ar2b)"/>
+          <text x="560" y="85" text-anchor="middle" font-size="10.5" fill="#2B4CC4" opacity=".85">두레이가 부른다</text>
+          <text x="560" y="112" text-anchor="middle" font-size="10" fill="#2B4CC4" opacity=".6">인바운드 HTTPS</text>
+
+          <!-- 각자 하는 일 -->
+          <line x1="120" y1="146" x2="120" y2="196" stroke="currentColor" stroke-width="1" stroke-dasharray="3 3"/>
+          <text x="120" y="216" text-anchor="middle" font-size="11" fill="currentColor" opacity=".65">고객 카드 · 요청서 접수</text>
+          <text x="120" y="234" text-anchor="middle" font-size="11" fill="currentColor" opacity=".65">웹에서 바뀐 완료 감지</text>
+
+          <line x1="720" y1="146" x2="720" y2="196" stroke="#2B4CC4" stroke-width="1" stroke-dasharray="3 3"/>
+          <text x="720" y="216" text-anchor="middle" font-size="11" fill="#2B4CC4" opacity=".8">버튼으로 상태 변경</text>
+          <text x="720" y="234" text-anchor="middle" font-size="11" fill="#2B4CC4" opacity=".8">완료 공지 · 개인 알림</text>
+
+          <text x="420" y="216" text-anchor="middle" font-size="11" fill="currentColor" opacity=".55">현황판에 업무가 쌓인다</text>
+          <text x="420" y="266" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".45">dooray.infomaxai.com</text>
+        </svg>
+      </div>
+      <figcaption>방향이 반대라 프로세스가 둘이다. 버튼 클릭은 두레이가 우리를 호출하므로 공개 주소가 있는 서버가 필요하다.</figcaption>
+    </figure>
+
+    <div class="note plain">
+      <b>맥이 잠들면 조회와 접수가 멎습니다.</b> 버튼은 서버에 있어 계속 살아 있으니, 절반만 도는 상태가 될 수 있습니다. 시연 직전에 맥의 터미널을 한 번 보세요.
+    </div>
+  </section>
+
+  <!-- ============ 시연 순서 ============ -->
+  <section>
+    <h2>시연 순서</h2>
+    <p class="sub">아래 일곱 단계가 한 바퀴입니다. 실제로 화면에 나오는 그대로 적었습니다.</p>
+
+    <div class="steps">
+
+      <div class="step">
+        <span class="n">01</span>
+        <div class="body">
+          <h3>고객정보 조회 <span class="pill accent">CRM 조회 방</span></h3>
+          <p>고객번호를 섞어 아무렇게나 쓰면 됩니다. 정해진 양식이 없습니다.</p>
+          <div class="say out">E230096 계약 언제 끝나지?</div>
+          <div class="say">[기본정보]
+고객번호 : E230096
+고객구분 : 계약
+고객명 : 미래에셋자산운용
+
+[사용자정보]
+부서 : 채권운용부문 투자전략본부
+이름 : 정상호 매니저
+전화1 : 02-3774-8013
+전화2 :
+이메일 : sanghojeong9210@miraeasset.com
+
+[계약정보] · [설치정보] …</div>
+          <p>값이 없으면 <strong>라벨만 남고 빈칸</strong>입니다. 담당자가 "값이 없다"는 사실 자체를 알아야 하기 때문입니다.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="n">02</span>
+        <div class="body">
+          <h3>요청서 양식 받기</h3>
+          <p>전화로 요청을 받아 적을 때는 양식이 있는 편이 낫습니다. 유형은 11종입니다.</p>
+          <div class="say out">#이전</div>
+          <div class="say">이전요청서
+[기본정보]
+고객번호 :
+고객명 :
+[요청정보]
+희망일시 :
+연락처 :
+메모 :</div>
+          <p><code>#양식</code> 을 치면 쓸 수 있는 양식 목록이 나옵니다.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="n">03</span>
+        <div class="body">
+          <h3>채워서 제출</h3>
+          <p>양식 위에 <code>#기술정보</code> 를 붙여 보냅니다. 아직 업무가 생기지 않습니다.</p>
+          <div class="say out">#기술정보
+이전요청서
+[기본정보]
+고객번호 : E230096
+고객명 : 미래에셋자산운용 채권운용본부 투자전략운용부 정상호 매니저
+[요청정보]
+희망일시 : 2026년 9월 30일 오후 4시 이후
+연락처 : 정상호 매니저 02-3774-8013
+메모 : 이전 간 모니터 2대 추가</div>
+          <div class="say">아래 내용으로 업무를 생성할까요?
+
+제목 : 미래에셋자산운용 장비/설비 이전 [접수 9/30]
+고객번호 : E230096
+고객명 : 미래에셋자산운용
+희망일시 : 2026년 9월 30일 오후 4시 이후
+연락처 : 정상호 매니저 02-3774-8013
+메모 : 이전 간 모니터 2대 추가</div>
+          <p><strong>제목의 고객사명은 CRM에서 가져온 것</strong>입니다. 양식에 적힌 고객명에는 부서·담당자가 섞여 있어 제목으로 쓰기엔 길어서, 원문은 본문에 그대로 보존합니다.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="n">04</span>
+        <div class="body">
+          <h3>확인하고 등록</h3>
+          <p>두 가지 길이 있습니다. <strong>시연에는 버튼 쪽</strong>을 권합니다.</p>
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>방법</th><th>어떻게</th><th>미리보기가 보이는 범위</th></tr></thead>
+              <tbody>
+                <tr><td class="mono">#확인</td><td class="sub">타이핑</td><td class="sub">방 전체</td></tr>
+                <tr><td class="mono">/접수</td><td class="sub">커맨드 → <strong>버튼 클릭</strong></td><td class="sub">본인만</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p><code>/접수</code> 는 방의 최근 양식을 다시 읽어 같은 내용을 <strong>[생성] [취소] 버튼</strong>과 함께 띄웁니다. 고객 연락처가 방에 남지 않는다는 점도 이쪽이 낫습니다.</p>
+          <div class="say">기술지원 요청이 접수되었습니다.
+미래에셋자산운용 장비/설비 이전 [접수 9/30]
+고객번호 : E230096
+https://infomax.dooray.com/project/tasks/4413315484872886147</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="n">05</span>
+        <div class="body">
+          <h3>기술 지원 방에도 알림 <span class="pill accent">기술 지원 현황판 방</span></h3>
+          <p>CRM 조회 방에서 낸 요청은 기술팀 눈에 띄지 않습니다. 업무만 조용히 생기고 아무도 모르면 자동화가 아니라 사각지대입니다.</p>
+          <div class="say">🆕 새 기술지원 요청이 등록되었습니다.
+미래에셋자산운용 장비/설비 이전 [접수 9/30]
+https://infomax.dooray.com/project/tasks/…</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="n">06</span>
+        <div class="body">
+          <h3>처리 — 수락과 완료</h3>
+          <p><code>/처리</code> 를 치면 미완료 요청이 버튼과 함께 나옵니다. <strong>누른 사람에게만 보입니다.</strong></p>
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>현재 상태</th><th>보이는 버튼</th><th>누르면</th></tr></thead>
+              <tbody>
+                <tr><td><span class="pill amber">접수</span></td><td class="mono">수락 · 완료</td><td class="sub">진행 중 또는 완료로</td></tr>
+                <tr><td><span class="pill teal">진행 중</span></td><td class="mono">완료</td><td class="sub">완료로</td></tr>
+                <tr><td><span class="pill green">완료</span></td><td class="sub">목록에 안 나옴</td><td class="sub">—</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>누르면 <strong>목록이 그대로 남은 채</strong> 그 항목만 갱신됩니다. 연달아 처리할 수 있습니다. 잘못 눌렀으면 <strong>되돌리기</strong>가 붙습니다 — 버튼 이름에 어디로 돌아갈지가 적혀 있습니다.</p>
+          <div class="say">✅ 미래에셋자산운용 장비/설비 이전 [접수 9/30] → 완료 처리했습니다.
+   [되돌리기 (접수)]
+
+기술지원 요청 (2건)
+  한국거래소 SW 업그레이드 [접수]        [수락] [완료]
+  BNK증권 신규설치 [방문예정 8/14]        [완료]</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="n">07</span>
+        <div class="body">
+          <h3>완료 통보 — 고리가 닫힌다</h3>
+          <p>두 곳으로 갑니다. 하나는 방에, 하나는 요청자 개인에게.</p>
+          <div class="say"><strong>기술지원 도우미 BOT</strong>
+✅ 기술지원 요청이 처리 완료되었습니다.
+   미래에셋자산운용 장비/설비 이전 [접수 9/30]</div>
+          <p>방 공지는 <strong>앱 이름으로</strong> 나갑니다 — 개인 계정이 아니라 자동화가 한 일임이 드러납니다. 개인 알림은 요청자가 본인이면 <strong>Dooray! News</strong>로, 다른 사람이면 <strong>1:1 대화방</strong>으로 갑니다.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============ 통보 두 갈래 ============ -->
+  <section>
+    <h2>완료 통보가 갈리는 지점</h2>
+    <p>두레이는 <strong>업무 상태 변경에 알림을 주지 않습니다.</strong> 그래서 완료를 어떻게 했느냐에 따라 통보 경로와 속도가 달라집니다.</p>
+
+    <figure>
+      <div class="dwrap">
+        <svg viewBox="0 0 840 280" role="img"
+             aria-label="버튼으로 완료하면 커맨드 서버가 즉시 통보하고, 두레이 웹에서 완료하면 5분 주기 폴링이 잡아 통보한다">
+          <defs>
+            <marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5"
+                    markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <polygon points="0,0 10,5 0,10" fill="currentColor"/>
+            </marker>
+            <marker id="ar3a" viewBox="0 0 10 10" refX="9" refY="5"
+                    markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <polygon points="0,0 10,5 0,10" fill="#2B4CC4"/>
+            </marker>
+          </defs>
+
+          <!-- 위 경로 : 버튼 -->
+          <rect x="20" y="30" width="180" height="58" rx="6" fill="none" stroke="#2B4CC4" stroke-width="1.8"/>
+          <text x="110" y="55" text-anchor="middle" font-size="12.5" font-weight="600" fill="#2B4CC4">/처리 → [완료]</text>
+          <text x="110" y="74" text-anchor="middle" font-size="11" fill="#2B4CC4" opacity=".8">대화방에서 클릭</text>
+
+          <line x1="200" y1="59" x2="292" y2="59" stroke="#2B4CC4" stroke-width="1.8" marker-end="url(#ar3a)"/>
+          <text x="246" y="50" text-anchor="middle" font-size="10.5" fill="#2B4CC4" opacity=".85">클릭이 곧 이벤트</text>
+
+          <rect x="292" y="30" width="180" height="58" rx="6" fill="none" stroke="#2B4CC4" stroke-width="1.8"/>
+          <text x="382" y="55" text-anchor="middle" font-size="12.5" font-weight="600" fill="#2B4CC4">커맨드 서버</text>
+          <text x="382" y="74" text-anchor="middle" font-size="11" fill="#2B4CC4" opacity=".8">그 자리에서 처리</text>
+
+          <path d="M472 59 H524 V118 H562" fill="none" stroke="#2B4CC4" stroke-width="1.8" marker-end="url(#ar3a)"/>
+          <text x="498" y="50" text-anchor="middle" font-size="11" font-weight="600" fill="#2B4CC4">즉시</text>
+
+          <!-- 아래 경로 : 웹 -->
+          <rect x="20" y="170" width="180" height="58" rx="6" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <text x="110" y="195" text-anchor="middle" font-size="12.5" font-weight="600" fill="currentColor">두레이 웹</text>
+          <text x="110" y="214" text-anchor="middle" font-size="11" fill="currentColor" opacity=".7">업무 화면에서 상태 변경</text>
+
+          <line x1="200" y1="199" x2="292" y2="199" stroke="currentColor" stroke-width="1.4"
+                stroke-dasharray="5 4" marker-end="url(#ar3)"/>
+          <text x="246" y="190" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".65">알림 없음</text>
+
+          <rect x="292" y="170" width="180" height="58" rx="6" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <text x="382" y="195" text-anchor="middle" font-size="12.5" font-weight="600" fill="currentColor">에이전트 폴링</text>
+          <text x="382" y="214" text-anchor="middle" font-size="11" fill="currentColor" opacity=".7">5분마다 스냅샷 비교</text>
+
+          <path d="M472 199 H524 V170 H562" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar3)"/>
+          <text x="498" y="190" text-anchor="middle" font-size="11" fill="currentColor" opacity=".7">최대 5분</text>
+
+          <!-- 도착지 -->
+          <rect x="564" y="88" width="256" height="112" rx="6" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <text x="692" y="118" text-anchor="middle" font-size="12.5" font-weight="600" fill="currentColor">요청자에게 도달</text>
+          <text x="692" y="142" text-anchor="middle" font-size="11" fill="currentColor" opacity=".7">대화방 — 봇 공지 또는 인용 답장</text>
+          <text x="692" y="162" text-anchor="middle" font-size="11" fill="currentColor" opacity=".7">개인 — Dooray! News 또는 1:1</text>
+          <text x="692" y="184" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".5">어느 쪽이든 한 번만</text>
+
+          <text x="20" y="264" font-size="11" fill="currentColor" opacity=".55">중복은 업무 본문의 [통보완료] 표식으로 막는다 — 버튼으로 처리한 건은 폴링이 건너뛴다</text>
+        </svg>
+      </div>
+      <figcaption>두 경로 모두 요청자에게 닿지만 속도가 다르다. 시연은 버튼 경로라 지연 없이 보인다.</figcaption>
+    </figure>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>완료 방식</th><th>대화방</th><th>요청자 개인</th><th class="mono">시점</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>/처리</code> 버튼</td>
+            <td>기술지원 도우미 BOT 공지</td>
+            <td>News 또는 1:1</td>
+            <td class="mono"><span class="pill green">즉시</span></td>
+          </tr>
+          <tr>
+            <td>두레이 웹에서 변경</td>
+            <td>원 요청에 인용 답장</td>
+            <td>News 또는 1:1</td>
+            <td class="mono"><span class="pill amber">최대 5분</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note plain">
+      <b>같은 완료가 두 번 알려지지는 않습니다.</b> 버튼으로 처리하면 업무 본문에 <code>[통보완료]</code> 표식이 남고, 5분마다 도는 확인이 그걸 보고 건너뜁니다. 두 프로세스가 다른 기계에서 도는 탓에 상태를 나눌 매체가 업무 본문뿐이라 이렇게 했습니다.
+    </div>
+  </section>
+
+  <!-- ============ 시연 전 점검 ============ -->
+  <section>
+    <h2>시연 전 점검</h2>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>확인할 것</th><th class="mono">어떻게</th><th>정상</th></tr></thead>
+        <tbody>
+          <tr><td>에이전트</td><td class="mono sub">맥의 agent.py 창</td><td class="sub"><code>connected</code> 이후 오류 없음</td></tr>
+          <tr><td>모의 CRM</td><td class="mono sub">lsof -i :8900</td><td class="sub">떠 있음</td></tr>
+          <tr><td>커맨드 서버</td><td class="mono sub">curl .../health</td><td class="sub"><code>{"ok": true}</code></td></tr>
+          <tr><td>커맨드 등록</td><td class="mono sub">대화방에서 <code>/</code> 입력</td><td class="sub"><code>/처리</code> <code>/접수</code> 가 보임</td></tr>
+          <tr><td>처리할 건</td><td class="mono sub">/처리</td><td class="sub">미완료 요청이 1건 이상</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note">
+      <b>CRM은 모의 서버이고 데이터는 전부 가짜입니다.</b> 시연 때 반드시 밝히세요. 실 API 스펙이 나오면 <code>CRM_BASE_URL</code> 한 줄만 바꾸면 되고 애플리케이션 코드는 그대로입니다.
+    </div>
+
+    <h3>시연에서 강조할 만한 것</h3>
+    <ul>
+      <li><strong>양식이 없어도 됩니다.</strong> 사람마다 쓰는 모양이 달라 Claude Haiku가 문장을 읽고 유형과 제목을 다듬습니다. 고객번호·희망일처럼 형식이 고정된 값은 규칙이 더 빠르고 정확해서 그쪽이 맡습니다.</li>
+      <li><strong>두레이 업무가 실제로 바뀝니다.</strong> 화면 문구만 고치는 게 아닙니다 — <code>/처리</code>를 다시 쳐 보면 상태가 그대로 남아 있습니다.</li>
+      <li><strong>AI 프리미엄 라이선스 없이 만들었습니다.</strong> 개인 액세스 토큰과 사내 서버만 씁니다.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <div>연합인포맥스 AI부 · Dooray Extension Agent PoC</div>
+    <div class="mono">github.com/final5545/dooray-poc · 앱 「기술지원 도우미」</div>
+    <div class="mono">기술 상세는 docs/08-두레이-연동-기술노트.md · 사용법은 docs/사용법.html</div>
+  </footer>
+
+</div>
