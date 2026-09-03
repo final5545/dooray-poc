@@ -46,6 +46,8 @@ from crm.service import handle_message as crm_handle     # noqa: E402
 from support.channels import channel_for_member, direct_channels  # noqa: E402
 from routing import RouteConfigError, parse_routes       # noqa: E402
 from support.completion import handle_news, news_card    # noqa: E402
+from support.intake import PendingStore                  # noqa: E402
+from support.intake import handle as intake_handle       # noqa: E402
 from support.llm import OpenAICompatExtractor            # noqa: E402
 from support.llm_anthropic import AnthropicExtractor      # noqa: E402
 from support.repository import DoorayTicketRepository    # noqa: E402
@@ -121,6 +123,9 @@ if "support" in ROUTES.values():
         raise SystemExit("support 라우트가 있으면 DOORAY_SUPPORT_PROJECT가 필요합니다.")
     TICKET_REPO = DoorayTicketRepository(TOKEN, SUPPORT_PROJECT, domain=DOMAIN)
     WATCHER = CompletionWatcher(TICKET_REPO, StateStore(STATE_PATH))
+
+# 요청서 양식 접수 — 확인(#확인)을 기다리는 동안만 들고 있는다.
+INTAKE = PendingStore()
 
 # 자유서술 필드(고객사명·세부사항·담당자) 보강용. 없으면 규칙 기반 결과만 쓴다.
 LLM = None
@@ -239,7 +244,16 @@ def handle(client: DoorayClient, channel: str, text: str, sender: str,
 
     # 각 핸들러는 처리 대상이 아니면 None을 돌려준다 → 아무것도 보내지 않는다
     if route == "crm":
-        reply = crm_handle(text, CRM_REPO)
+        # '#' 명령(요청서 양식)이 먼저다. 우리 명령이 아니면 None이 와서
+        # 평소대로 고객번호 조회로 넘어간다.
+        reply = intake_handle(
+            text, channel=channel, user_id=sender, store=INTAKE,
+            tickets=TICKET_REPO, customers=CRM_REPO, llm=LLM,
+            origin_message=content.get("id"),
+            on_created=WATCHER.track if WATCHER else None,
+        )
+        if reply is None:
+            reply = crm_handle(text, CRM_REPO)
     elif route == "support":
         # requester_id는 참조자 지정용이 아니다(cc_requester 기본 False).
         #   Dooray는 상태 변경에 알림을 보내지 않아 참조자 지정의 원래 목적인
