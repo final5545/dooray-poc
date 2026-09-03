@@ -141,6 +141,14 @@ class TestPreview:
         got = build_preview(parse_form(FILLED), "제목", None)
         assert f"#{CONFIRM}" in got and f"#{CANCEL}" in got
 
+    def test_눌러야_하는지_쳐야_하는지_분명히_한다(self):
+        # 버튼처럼 보이면 눌러 보게 된다. 여기는 글자다
+        got = build_preview(parse_form(FILLED), "제목", None)
+        assert "입력해 주세요" in got
+
+    def test_버튼을_쓰는_방법도_알려준다(self):
+        assert "/접수" in build_preview(parse_form(FILLED), "제목", None)
+
     def test_빈_항목은_줄을_만들지_않는다(self):
         d = parse_form("이전요청서\n고객번호 : E230096")
         got = build_preview(d, "제목", None)
