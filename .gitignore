@@ -1,0 +1,20 @@
+# 자격증명 — 절대 커밋 금지
+.env
+.env.*
+!.env.example
+
+# 가상환경
+.venv/
+venv/
+
+# 파이썬
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# 로그·임시
+*.log
+.DS_Store
+
+# 완료 감지 스냅샷
+.state/

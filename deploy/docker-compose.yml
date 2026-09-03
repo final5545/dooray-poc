@@ -1,0 +1,46 @@
+# Dooray 슬래시 커맨드 서버 — Docker Swarm 배포
+#
+# ai-node Traefik 설정에서 읽은 제약을 반영했다:
+#   --providers.swarm=true
+#   --providers.swarm.exposedbydefault=false   → 라벨을 명시해야 노출된다
+#   --providers.docker.network=redis           → 이 네트워크에 붙어야 Traefik이 인식한다
+#   --entrypoints.websecure.address=:443
+#   --certificatesresolvers.leresolver...      → Let's Encrypt 자동 발급
+#
+# 배포:
+#   docker stack deploy -c docker-compose.yml dooray
+#
+# 확인:
+#   curl https://dooray.infomaxai.com/health
+
+version: "3.8"
+
+services:
+  command:
+    image: dooray-command:latest
+    environment:
+      # Dooray 개인 액세스 토큰 (업무 상태 변경용)
+      DOORAY_TOKEN: "${DOORAY_TOKEN}"
+      DOORAY_SUPPORT_PROJECT: "${DOORAY_SUPPORT_PROJECT}"
+      DOORAY_DOMAIN: "infomax.dooray.com"
+      # 연동 서비스에서 발급한 앱 토큰. 요청 검증에 쓴다.
+      DOORAY_APP_TOKEN: "${DOORAY_APP_TOKEN}"
+    networks:
+      - redis
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+        delay: 5s
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=redis"
+        - "traefik.http.routers.dooraycmd.rule=Host(`dooray.infomaxai.com`)"
+        - "traefik.http.routers.dooraycmd.entrypoints=websecure"
+        - "traefik.http.routers.dooraycmd.tls=true"
+        - "traefik.http.routers.dooraycmd.tls.certresolver=leresolver"
+        - "traefik.http.services.dooraycmd.loadbalancer.server.port=8910"
+
+networks:
+  redis:
+    external: true
