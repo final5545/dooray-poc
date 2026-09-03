@@ -199,3 +199,37 @@ class TestPickForm:
     def test_빈_입력(self):
         assert pick_form([], "u1") is None
         assert pick_form(None, "u1") is None
+
+
+class TestFormCoverage:
+    """기획서 §4의 요청 유형은 모두 양식이 있어야 한다.
+
+    양식으로 접수한 건과 자유 서술로 접수한 건의 제목이 같은 어휘로 나와야
+    현황판에서 한 종류로 묶인다.
+    """
+
+    def test_추출기가_아는_유형은_모두_양식이_있다(self):
+        from support.extractor import REQUEST_TYPES
+        from support.form import FORMS
+        have = {t for _, t in FORMS.values()}
+        missing = [label for label, _ in REQUEST_TYPES if label not in have]
+        assert missing == [], f"양식 없는 유형: {missing}"
+
+    def test_양식의_유형은_추출기_라벨과_같다(self):
+        # 어긋나면 같은 요청이 제목에서 다른 이름으로 갈린다
+        from support.extractor import REQUEST_TYPES
+        from support.form import FORMS
+        known = {label for label, _ in REQUEST_TYPES}
+        for key, (_, request_type) in FORMS.items():
+            assert request_type in known, f"#{key} 의 유형 '{request_type}' 이 낯설다"
+
+    def test_트리거가_겹치지_않는다(self):
+        from support.form import CANCEL, CONFIRM, FORMS, LIST, SUBMIT
+        reserved = {SUBMIT, CONFIRM, CANCEL, LIST}
+        assert not (set(FORMS) & reserved)
+
+    def test_모든_양식이_제목과_항목을_갖춘다(self):
+        from support.form import FORMS, build_form
+        for key in FORMS:
+            got = build_form(key)
+            assert got and "고객번호 : " in got
