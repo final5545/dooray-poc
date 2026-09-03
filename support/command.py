@@ -54,6 +54,7 @@ class ActionRequest:
     user_id: str | None = None
     channel_id: str | None = None
     callback_id: str | None = None
+    response_url: str | None = None   # 이 호출 맥락에서 봇으로 추가 발신할 URL
 
     @property
     def target_state(self) -> str | None:
@@ -86,9 +87,27 @@ def parse_action(payload: dict) -> ActionRequest | None:
         task_id=task_id,
         prev_state=prev_state,
         user_id=((payload.get("user") or {}).get("id")),
-        channel_id=((payload.get("channel") or {}).get("id")),
+        channel_id=((payload.get("channel") or {}).get("id")) or payload.get("channelId"),
         callback_id=payload.get("callbackId"),
+        response_url=payload.get("responseUrl"),
     )
+
+
+def build_announcement(subject: str, actor_name: str | None = None) -> dict:
+    """완료를 대화방에 공지하는 봇 메시지.
+
+    ephemeral 결과는 누른 사람만 본다. 요청자에게 결과가 보이려면 방에 남아야
+    하는데, 이 경로로 보내면 **앱 이름(기술지원 도우미 BOT)으로** 나간다.
+    개인 계정으로 보내는 것과 달리 누가 봐도 자동화가 한 일임이 드러난다.
+    """
+    lines = ["✅ 기술지원 요청이 처리 완료되었습니다."]
+    if actor_name:
+        lines.append(f"처리자 : {actor_name}")
+    card: dict = {"color": "green"}
+    if subject:
+        card["title"] = subject
+    return {"responseType": "inChannel", "replaceOriginal": False,
+            "text": "\n".join(lines), "attachments": [card]}
 
 
 def _btn(text: str, value: str, primary: bool = False) -> dict:

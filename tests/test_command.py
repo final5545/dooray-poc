@@ -4,6 +4,7 @@ from support.command import (
     ACTION_DONE,
     ACTION_UNDO,
     CALLBACK_TICKET,
+    build_announcement,
     build_error,
     build_result,
     build_ticket_list,
@@ -249,3 +250,48 @@ class TestUndo:
             == "working"
         assert parse_action(self._payload(f"{ACTION_UNDO}/t1/registered")).target_state \
             == "registered"
+
+
+class TestAnnouncement:
+    """완료를 방에 봇 이름으로 공지한다.
+
+    ephemeral 결과는 누른 사람만 본다. 요청자에게 결과가 닿으려면 방에 남아야
+    하는데, responseUrl로 보내면 앱 이름(기술지원 도우미 BOT)으로 나간다.
+    개인 계정 발신과 달리 자동화가 한 일임이 드러난다.
+
+    ⚠️ responseUrl의 cmdToken은 **호출 1건에 딸려 오는 값**이다. 앱 토큰으로는
+       만들 수 없다(실측: INTEGRATION_COMMAND_CALL_NOT_EXIST_ERROR).
+    """
+
+    def test_방_전체에_보인다(self):
+        got = build_announcement("한국거래소 SW 업그레이드")
+        assert got["responseType"] == "inChannel"
+
+    def test_기존_메시지를_덮지_않는다(self):
+        # 목록 갱신과 달리 새 메시지로 남아야 요청자가 본다
+        assert build_announcement("건")["replaceOriginal"] is False
+
+    def test_업무_제목이_카드에_붙는다(self):
+        got = build_announcement("한국거래소 SW 업그레이드")
+        assert got["attachments"][0]["title"] == "한국거래소 SW 업그레이드"
+
+    def test_제목이_없으면_카드에_제목도_없다(self):
+        assert "title" not in build_announcement("")["attachments"][0]
+
+    def test_처리자를_밝힐_수_있다(self):
+        assert "정시욱" in build_announcement("건", "정시욱")["text"]
+
+
+class TestResponseUrl:
+    def test_클릭_페이로드에서_responseUrl을_챙긴다(self):
+        got = parse_action({
+            "callbackId": CALLBACK_TICKET, "actionValue": f"{ACTION_DONE}/t1/working",
+            "channelId": "c9", "responseUrl": "https://x/hook/tok",
+        })
+        assert got.response_url == "https://x/hook/tok" and got.channel_id == "c9"
+
+    def test_responseUrl이_없어도_처리는_된다(self):
+        # 봇 공지는 부가 기능이다. 없다고 상태 변경까지 막으면 안 된다
+        got = parse_action({"callbackId": CALLBACK_TICKET,
+                            "actionValue": f"{ACTION_DONE}/t1/working"})
+        assert got is not None and got.response_url is None

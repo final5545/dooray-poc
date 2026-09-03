@@ -15,6 +15,7 @@ import os
 import sys
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
+import requests
 from dotenv import load_dotenv
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -22,6 +23,8 @@ sys.path.insert(0, _ROOT)
 load_dotenv(os.path.join(_ROOT, ".env"), override=True)
 
 from support.command import (           # noqa: E402
+    ACTION_DONE,
+    build_announcement,
     build_error,
     build_result,
     build_ticket_list,
@@ -85,7 +88,32 @@ def handle_interactive(payload: dict) -> dict:
     if tasks:
         subject = next((t.get("subject") or "" for t in tasks
                         if str(t.get("id")) == req.task_id), "")
+
+    # 완료는 방에 공지한다. ephemeral 결과는 누른 사람만 보므로 요청자가 모른다.
+    # 수락·되돌리기는 처리자 본인의 일이라 굳이 방을 울리지 않는다.
+    if req.action == ACTION_DONE:
+        _announce(req, subject)
+
     return build_result(req, subject, target, tasks=tasks)
+
+
+def _announce(req, subject: str) -> None:
+    """responseUrl로 봇 이름의 완료 공지를 보낸다. 실패해도 처리는 성공이다.
+
+    이 URL은 **이번 호출에만 딸려 온 것**이다. 앱 토큰으로는 만들 수 없고
+    (INTEGRATION_COMMAND_CALL_NOT_EXIST_ERROR), 그래서 버튼 클릭처럼 커맨드
+    호출이 있는 순간에만 봇으로 말할 수 있다.
+    """
+    if not req.response_url or not req.channel_id:
+        return
+    body = build_announcement(subject)
+    body["channelId"] = req.channel_id
+    try:
+        r = requests.post(req.response_url, json=body, timeout=10)
+        ok = (r.json().get("header") or {}).get("isSuccessful")
+        print(f"    완료 공지 → {'전송됨' if ok else r.text[:120]}")
+    except Exception as e:
+        print(f"    완료 공지 실패: {e}")
 
 
 ROUTES = {"/command": handle_command, "/interactive": handle_interactive}
