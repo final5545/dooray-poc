@@ -47,6 +47,30 @@ def parse_requester(body: str) -> str | None:
     return m.group(1) if m else None
 
 
+# 완료 통보를 이미 보냈다는 표식.
+#
+# 버튼으로 완료하면 커맨드 서버가 그 자리에서 봇 공지를 띄운다. 그런데 완료
+# 감지 폴링(watcher)은 같은 변화를 5분 안에 또 잡아 원 요청에 인용 답장을
+# 단다 — 같은 사실이 두 번 알려진다.
+#
+# 두 프로세스는 다른 기계에서 돌아 상태를 나눠 가질 수 없다. 공유 매체는
+# 업무 본문뿐이고, 워처는 어차피 본문을 읽으므로(원 요청 좌표를 찾느라)
+# 읽는 쪽 비용이 없다. 그래서 여기에 표식을 남긴다.
+NOTIFIED_LINE = "[통보완료]"
+
+
+def is_notified(body: str) -> bool:
+    """이미 통보된 건인가. 표식이 없으면 False(옛 티켓 포함)."""
+    return bool(body) and NOTIFIED_LINE in body
+
+
+def mark_notified(body: str, how: str = "button") -> str:
+    """본문에 통보 표식을 붙인다. 이미 있으면 그대로 둔다."""
+    if is_notified(body):
+        return body
+    return f"{(body or '').rstrip()}\n{NOTIFIED_LINE} {how}"
+
+
 def build_title(req: SupportRequest, customer_name: str | None = None,
                 status_label: str = DEFAULT_STATUS) -> str:
     """예: 'BNK증권 신규설치 [접수 8/28]'

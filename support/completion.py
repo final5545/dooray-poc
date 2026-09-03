@@ -17,7 +17,7 @@ from dataclasses import dataclass
 
 from .notify import NewsEvent, parse_news
 from .repository import TicketRepository
-from .ticket import parse_origin, parse_requester
+from .ticket import is_notified, parse_origin, parse_requester
 
 log = logging.getLogger(__name__)
 
@@ -87,6 +87,11 @@ def reply_for_task(task: dict, actor_name: str | None = None,
         return None
 
     body = ((task.get("body") or {}).get("content")) or ""
+    if is_notified(body):
+        # 버튼으로 완료돼 커맨드 서버가 이미 봇 공지를 띄운 건.
+        # 폴링이 같은 사실을 또 알리지 않는다.
+        return None
+
     origin = parse_origin(body)
     if not origin:
         # 사람이 직접 만든 업무 등 — 회신할 곳이 없다

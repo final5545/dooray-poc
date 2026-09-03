@@ -13,6 +13,7 @@
 import json
 import os
 import sys
+import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import requests
@@ -93,8 +94,25 @@ def handle_interactive(payload: dict) -> dict:
     # 수락·되돌리기는 처리자 본인의 일이라 굳이 방을 울리지 않는다.
     if req.action == ACTION_DONE:
         _announce(req, subject)
+        _mark_notified_async(req.task_id)
 
     return build_result(req, subject, target, tasks=tasks)
+
+
+def _mark_notified_async(task_id: str) -> None:
+    """통보 표식을 백그라운드로 남긴다.
+
+    완료 감지 폴링(에이전트)이 같은 사실을 또 알리지 않게 하는 표식이다.
+    조회+수정 2회가 드는데 클릭 응답을 그만큼 늦출 이유가 없어 뒤로 뺀다.
+    폴링 주기가 분 단위라 이 몇백 ms의 틈이 문제될 일은 없다.
+    """
+    def run():
+        try:
+            repo.mark_notified(task_id)
+        except Exception as e:
+            # 실패하면 폴링이 한 번 더 알릴 뿐, 처리 자체는 이미 성공했다.
+            print(f"    통보 표식 실패: {e}")
+    threading.Thread(target=run, daemon=True).start()
 
 
 def _announce(req, subject: str) -> None:

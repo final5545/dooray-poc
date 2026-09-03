@@ -12,6 +12,8 @@ from typing import Protocol
 
 import requests
 
+from .ticket import mark_notified as _mark_notified
+
 BASE = "https://api.dooray.com"
 TIMEOUT = 10.0
 
@@ -108,6 +110,25 @@ class DoorayTicketRepository:
         r.raise_for_status()
         return (r.json().get("result") or {}).get("id", "")
 
+    def mark_notified(self, post_id: str, how: str = "button") -> bool:
+        """본문에 통보 표식을 남긴다. 이미 있으면 아무것도 하지 않는다.
+
+        완료 감지 폴링이 같은 사실을 또 알리지 않게 하는 장치다(ticket.py).
+        두 프로세스가 다른 기계에서 도는 탓에 상태를 나눌 매체가 업무 본문뿐이다.
+        """
+        task = self.get(post_id)
+        body = ((task.get("body") or {}).get("content")) or ""
+        marked = _mark_notified(body, how)
+        if marked == body:
+            return False
+        r = requests.put(self._url(f"/posts/{post_id}"), headers=self._headers,
+                         json={"subject": task.get("subject") or "",
+                               "body": {"mimeType": "text/x-markdown",
+                                        "content": marked}},
+                         timeout=self.timeout)
+        r.raise_for_status()
+        return True
+
     def set_workflow(self, post_id: str, workflow_id: str) -> None:
         r = requests.post(self._url(f"/posts/{post_id}/set-workflow"),
                           headers=self._headers,
@@ -140,3 +161,14 @@ class FakeTicketRepository:
         self.created.append((subject, body))
         self.cc.append(list(cc or []))
         return f"fake-{len(self.created)}"
+
+    def mark_notified(self, post_id: str, how: str = "button") -> bool:
+        row = self._rows.get(post_id)
+        if row is None:
+            return False
+        body = ((row.get("body") or {}).get("content")) or ""
+        marked = _mark_notified(body, how)
+        if marked == body:
+            return False
+        row["body"] = {"mimeType": "text/x-markdown", "content": marked}
+        return True
