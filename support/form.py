@@ -224,6 +224,10 @@ def pick_form(messages: list[dict], user_id: str | None = None) -> str | None:
 
     messages 는 Dooray 로그 응답 그대로다(최신이 앞). '#기술정보' 같은 명령
     줄이 앞에 붙어 있으면 떼어 낸다.
+
+    ⚠️ user_id 를 주지 않으면 **누구의 양식이든** 집는다. 양식에는 고객
+       연락처가 들어 있으므로 호출자는 반드시 누가 불렀는지 알고 넘겨야 한다
+       (standalone/command_server.py 의 handle_intake 참조).
     """
     for m in messages or []:
         sender = ((m.get("sender") or {}).get("member") or {}).get("organizationMemberId")

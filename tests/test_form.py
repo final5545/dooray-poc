@@ -233,3 +233,23 @@ class TestFormCoverage:
         for key in FORMS:
             got = build_form(key)
             assert got and "고객번호 : " in got
+
+
+class TestPickFormScope:
+    """/접수 는 방 전체를 훑되 **내가 쓴 것만** 고른다.
+
+    양식에는 고객 연락처가 들어 있다. 옆 사람이 올린 요청서를 내가 확정해
+    버리면 안 된다.
+    """
+
+    def _msg(self, text, sender):
+        return {"text": text, "sender": {"member": {"organizationMemberId": sender}}}
+
+    def test_남의_것이_더_최근이어도_내_것을_고른다(self):
+        mine = FILLED
+        theirs = FILLED.replace("E230096", "E050282")
+        got = pick_form([self._msg(theirs, "u2"), self._msg(mine, "u1")], "u1")
+        assert "E230096" in got
+
+    def test_내_것이_없으면_남의_것을_주지_않는다(self):
+        assert pick_form([self._msg(FILLED, "u2")], "u1") is None

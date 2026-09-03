@@ -138,6 +138,10 @@ def handle_intake(payload: dict) -> dict:
     user = payload.get("userId")
     if repo is None or messenger is None or not channel:
         return {"responseType": "ephemeral", "text": "서버 설정이 없습니다."}
+    if not user:
+        # 누가 불렀는지 모르면 남의 양식을 집을 수 있다. 그 양식에는 고객
+        # 연락처가 들어 있으므로 짐작으로 진행하지 않는다.
+        return {"responseType": "ephemeral", "text": "요청자를 확인하지 못했습니다."}
 
     try:
         form_text = pick_form(messenger.recent(channel), user)
