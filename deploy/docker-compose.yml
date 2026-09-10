@@ -34,6 +34,15 @@ services:
       #    기동 배너의 "CRM :" 줄에 어느 쪽을 보는지 찍힌다.
       CRM_KIND: "${CRM_KIND:-http}"
       CRM_BASE_URL: "${CRM_BASE_URL:-http://mockcrm:8900}"
+      # 보안 (2026-09-10 회의 기본조건).
+      # ⚠️ ALLOWED_USERS 가 비면 제한하지 않는다. 기동 배너의
+      #    "승인 사용자 :" 줄로 켜졌는지 확인할 것.
+      DOORAY_ALLOWED_USERS: "${DOORAY_ALLOWED_USERS}"
+      # 감사로그. 컨테이너가 재시작하면 사라지므로 볼륨을 붙이는 편이 낫다.
+      DOORAY_AUDIT_LOG: "${DOORAY_AUDIT_LOG:-/app/.state/audit.jsonl}"
+    volumes:
+      # 감사로그는 컨테이너 바깥에 남긴다 — 재배포해도 기록이 이어지도록
+      - /var/lib/dooray-poc/state:/app/.state
     networks:
       - redis
     deploy:
