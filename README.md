@@ -78,6 +78,7 @@ python -m pytest tests -q        # 376 passed
 | [`docs/08-두레이-연동-기술노트.html`](docs/08-두레이-연동-기술노트.html) | 공유용 — 결론과 함정 요약 |
 | [`docs/08-두레이-연동-기술노트.md`](docs/08-두레이-연동-기술노트.md) | 전체 판 — 구현할 때 |
 | [`docs/사용법.html`](docs/사용법.html) | 담당자용 |
+| [`docs/11-회의보고-0910.html`](docs/11-회의보고-0910.html) | 회의 보고 — 진척과 결정 요청 |
 | [`docs/10-업무관리-어디에-둘까.html`](docs/10-업무관리-어디에-둘까.html) | 검토 — 티켓을 Dooray에 둘까 CRM에 둘까 |
 
 HTML 문서는 브라우저로 열면 됩니다 (`open docs/09-시연-흐름.html`).

@@ -1,0 +1,374 @@
+<title>PoC 진척 보고 0910</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@500;600&family=IBM+Plex+Sans+KR:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+:root{
+  --paper:#EEF1F5; --surface:#FFFFFF; --surface-2:#E4E9F0;
+  --ink:#151C28; --ink-soft:#596373; --ink-faint:#8A93A2;
+  --line:#D3DAE4; --line-soft:#E2E7EE;
+  --accent:#2B4CC4; --accent-soft:#E8ECFA;
+  --amber:#8F5F14; --amber-bg:#F7EEDC;
+  --green:#256040; --green-bg:#DFEEE5;
+  --red:#9B2C2C; --red-bg:#F7E4E4;
+  --bubble-out:#E3E7F7; --bubble-in:#EDEFF4;
+  --shadow:0 1px 2px rgba(21,28,40,.05), 0 4px 14px rgba(21,28,40,.05);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0F141B; --surface:#171E27; --surface-2:#1F2833;
+    --ink:#E3E9F1; --ink-soft:#98A3B4; --ink-faint:#6B7688;
+    --line:#2B3541; --line-soft:#232C37;
+    --accent:#8AA2F8; --accent-soft:#1E2843;
+    --amber:#DCA75A; --amber-bg:#2E2618;
+    --green:#72C294; --green-bg:#162C21;
+    --red:#E08585; --red-bg:#2E1B1B;
+    --bubble-out:#232E4A; --bubble-in:#212A35;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0F141B; --surface:#171E27; --surface-2:#1F2833;
+  --ink:#E3E9F1; --ink-soft:#98A3B4; --ink-faint:#6B7688;
+  --line:#2B3541; --line-soft:#232C37;
+  --accent:#8AA2F8; --accent-soft:#1E2843;
+  --amber:#DCA75A; --amber-bg:#2E2618;
+  --green:#72C294; --green-bg:#162C21;
+  --red:#E08585; --red-bg:#2E1B1B;
+  --bubble-out:#232E4A; --bubble-in:#212A35;
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+}
+
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);
+  font-family:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  font-weight:300;line-height:1.72;font-size:15px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:860px;margin:0 auto;padding:56px 24px 96px;display:flex;flex-direction:column;gap:46px}
+
+.masthead{display:flex;flex-direction:column;gap:13px;padding-bottom:30px;border-bottom:2px solid var(--ink)}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink-faint);font-weight:500}
+h1{font-family:"Hahmlet",serif;font-weight:600;font-size:clamp(29px,5vw,40px);
+  line-height:1.2;letter-spacing:-.01em;margin:0;text-wrap:balance}
+.lede{font-size:16px;color:var(--ink-soft);max-width:62ch;margin:0}
+.meta{display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:4px;
+  font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-faint)}
+.meta b{font-weight:500;color:var(--ink-soft)}
+
+section{display:flex;flex-direction:column;gap:18px}
+h2{font-family:"Hahmlet",serif;font-weight:600;font-size:23px;line-height:1.3;
+  margin:0;display:flex;align-items:baseline;gap:11px;text-wrap:balance}
+h2 .num{font-family:"IBM Plex Mono",monospace;font-size:12.5px;font-weight:500;
+  color:var(--accent);letter-spacing:.05em;flex:none}
+h3{font-family:"IBM Plex Sans KR",sans-serif;font-weight:600;font-size:14px;margin:0}
+p{margin:0;max-width:66ch}
+.sub{color:var(--ink-soft)}
+strong{font-weight:600}
+code{font-family:"IBM Plex Mono",monospace;font-size:.88em;
+  background:var(--surface-2);padding:.1em .38em;border-radius:3px}
+
+.quote{border-left:3px solid var(--ink-faint);padding:2px 0 2px 15px;
+  color:var(--ink-soft);font-size:13.5px;max-width:66ch;font-style:normal}
+.quote b{color:var(--ink);font-weight:600}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:520px}
+th,td{text-align:left;padding:9px 14px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+tr:last-child td{border-bottom:0}
+th{font-weight:600;font-size:11px;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-faint);font-family:"IBM Plex Mono",monospace;background:var(--surface-2);
+  border-bottom:1px solid var(--line)}
+td.mono{font-family:"IBM Plex Mono",monospace;font-size:12.5px}
+td.sub{color:var(--ink-soft)}
+td.yes{color:var(--green);font-weight:500;white-space:nowrap}
+td.no{color:var(--red);font-weight:500;white-space:nowrap}
+td.mid{color:var(--amber);font-weight:500;white-space:nowrap}
+
+.chat{background:var(--surface);border:1px solid var(--line);border-radius:8px;
+  box-shadow:var(--shadow);overflow:hidden}
+.chat-head{display:flex;align-items:center;gap:8px;padding:9px 14px;
+  border-bottom:1px solid var(--line-soft);background:var(--surface-2)}
+.chat-head .room{font-weight:600;font-size:13px}
+.chat-head .hint{font-size:11.5px;color:var(--ink-faint);font-family:"IBM Plex Mono",monospace}
+.chat-body{padding:16px 14px;display:flex;flex-direction:column;gap:13px}
+.msg{display:flex;flex-direction:column;gap:5px}
+.msg .who{font-size:11.5px;color:var(--ink-faint);font-family:"IBM Plex Mono",monospace}
+.bubble{background:var(--bubble-in);border-radius:4px;padding:9px 12px;
+  font-size:13.5px;line-height:1.7;white-space:pre-wrap;word-break:break-word;align-self:flex-start}
+.msg.out .bubble{background:var(--bubble-out)}
+
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:6px;
+  padding:15px 16px;display:flex;flex-direction:column;gap:9px}
+.box.done{border-left:3px solid var(--green)}
+.box.open{border-left:3px solid var(--amber)}
+.box.no{border-left:3px solid var(--red)}
+.box p{font-size:13.5px;color:var(--ink-soft)}
+.box li{font-size:13px;color:var(--ink-soft)}
+
+.note{border-left:3px solid var(--amber);background:var(--amber-bg);
+  padding:12px 15px;border-radius:0 5px 5px 0;font-size:13.5px}
+.note.plain{border-left-color:var(--ink-faint);background:var(--surface-2)}
+.note.pick{border-left-color:var(--accent);background:var(--accent-soft)}
+.note b{font-weight:600}
+
+ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;max-width:66ch}
+li::marker{color:var(--ink-faint)}
+ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:9px;max-width:66ch}
+ol::marker{color:var(--ink-faint)}
+
+footer{border-top:1px solid var(--line);padding-top:24px;font-size:12.5px;
+  color:var(--ink-faint);display:flex;flex-direction:column;gap:5px}
+footer .mono{font-family:"IBM Plex Mono",monospace}
+
+@media print{
+  body{background:#fff}
+  .wrap{max-width:none;padding:0;gap:28px}
+  .tablewrap,.box,.chat{break-inside:avoid;box-shadow:none}
+}
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">연합인포맥스 AI부 · 합동회의 보고</div>
+    <h1>PoC 진척 보고</h1>
+    <p class="lede">지난 회의에서 승인된 방향대로 자연어 UX를 단순화하고 사내 CRM 실 API를 연결했습니다. 확인된 제약과 결정이 필요한 사항을 함께 정리합니다.</p>
+    <div class="meta">
+      <span><b>기준</b> 2026.09.10</span>
+      <span><b>범위</b> 액션 5 완료 · 액션 6 부분</span>
+    </div>
+  </header>
+
+  <!-- ============ 요약 ============ -->
+  <section>
+    <h2>한 장 요약</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>지난 회의 결정</th><th>상태</th><th>내용</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>자연어 요청 + 1회 확인</strong><br><span class="sub">액션 5</span></td>
+            <td class="yes">완료</td>
+            <td class="sub">말하듯 쓰면 양식을 대신 채우고, <strong>"네" 한 마디</strong>로 등록. 입력 2회</td>
+          </tr>
+          <tr>
+            <td><strong>CRM 실제 연동</strong><br><span class="sub">액션 6</span></td>
+            <td class="mid">부분</td>
+            <td class="sub">고객정보 API 연결 완료. <strong>필드 절반이 응답에 없음</strong>. 업무 API 미확인</td>
+          </tr>
+          <tr>
+            <td>토큰갱신 · 루프방지 · 상태알림</td>
+            <td class="yes">완료</td>
+            <td class="sub">지난 회의 이전에 구현. 일주일간 무중단 가동 중</td>
+          </tr>
+          <tr>
+            <td><strong>Dooray 요청 창구 / CRM 원장</strong></td>
+            <td class="mid">검토</td>
+            <td class="sub">구조상 가능. CRM 업무 API 스펙 확인 후 결정</td>
+          </tr>
+          <tr>
+            <td><strong>보안 · 제어계층</strong></td>
+            <td class="no">미착수</td>
+            <td class="sub">사용자 화이트리스트 · 최소 필드 · 호출제한 · 감사로그 모두 없음</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ 자연어 UX ============ -->
+  <section>
+    <h2><span class="num">01</span>자연어 요청 + 1회 확인</h2>
+    <div class="quote">
+      지난 회의 — <b>"현재의 해시·슬래시 명령과 다단계 양식은 사용성이 떨어지므로 자연어 요청과 1회 확인 중심으로 단순화"</b>
+    </div>
+
+    <p>지적대로 명령이 <strong>17종</strong>이었고, 양식 경로는 입력이 세 번 필요했습니다.</p>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th></th><th>지난 회의 시점</th><th>지금</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="sub">요청하는 법</td>
+            <td class="mono sub">#이전 → #기술정보 + 양식</td>
+            <td class="mono">말하듯 쓴다</td>
+          </tr>
+          <tr>
+            <td class="sub">확인하는 법</td>
+            <td class="mono sub">#확인</td>
+            <td class="mono">"네"</td>
+          </tr>
+          <tr>
+            <td class="sub">입력 횟수</td>
+            <td class="mono sub">3회</td>
+            <td class="mono">2회</td>
+          </tr>
+          <tr>
+            <td class="sub">외울 명령</td>
+            <td class="mono sub">17종</td>
+            <td class="mono">없음 <span class="sub">(양식은 선택)</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="chat">
+      <div class="chat-head"><span class="room">CRM 조회</span><span class="hint">2026-09-10 실측</span></div>
+      <div class="chat-body">
+        <div class="msg out">
+          <span class="who">정원석</span>
+          <div class="bubble">E120452 단말 바꿔야 할 것 같아요. 다음주 화요일 오후에 부탁드려요</div>
+        </div>
+        <div class="msg">
+          <span class="who">기술지원 도우미</span>
+          <div class="bubble">아래 내용으로 업무를 생성할까요?
+
+제목 : 연합인포맥스 노후교체 [접수]
+고객번호 : E120452
+고객명 : 연합인포맥스
+희망일시 : 다음주 화요일 오후
+메모 : 단말 교체 필요
+
+"네" 라고 답해 주시면 만들겠습니다. 아니면 "취소".</div>
+        </div>
+        <div class="msg out"><span class="who">정원석</span><div class="bubble">네</div></div>
+        <div class="msg">
+          <span class="who">기술지원 도우미</span>
+          <div class="bubble">기술지원 요청이 접수되었습니다.
+연합인포맥스 노후교체 [접수]
+고객번호 : E120452</div>
+        </div>
+      </div>
+    </div>
+
+    <ul>
+      <li>"바꿔야" 를 <strong>노후교체</strong>로, "다음주 화요일 오후" 를 <strong>희망일시</strong>로 읽었습니다. 요청 유형 11종을 분류합니다.</li>
+      <li><strong>조회는 조회로 갑니다.</strong> "계약 언제 끝나지?" 같은 말에는 고객 카드가 나옵니다. 애매하면 조회 쪽으로 기웁니다.</li>
+      <li>기존 명령(<code>#이전</code> · <code>#확인</code> · <code>/접수</code>)도 그대로 동작합니다. 익숙한 분은 계속 쓰실 수 있습니다.</li>
+    </ul>
+
+    <div class="note plain">
+      <b>업무를 자동으로 만들지는 않습니다.</b> AI가 잘못 읽을 수 있고 <strong>Dooray에 업무 삭제 API가 없습니다</strong>. 잘못 만든 업무는 사람이 화면에서 지워야 하므로, 확인 한 번이 그보다 쌉니다. 실제로 이 확인 단계 덕분에 개발 중 발견한 오류가 실제 업무로 이어지지 않았습니다.
+    </div>
+  </section>
+
+  <!-- ============ CRM 연동 ============ -->
+  <section>
+    <h2><span class="num">02</span>사내 CRM 실 API 연결</h2>
+    <div class="quote">
+      지난 회의 — <b>"CRM 개발서버와 실제 API가 연결되지 않아 실데이터 조회·양방향 상태동기화는 검증하지 못함"</b>
+    </div>
+
+    <p>고객정보 조회 API를 받아 연결했습니다. 응답 <strong>40ms</strong>로 실사용에 문제가 없습니다.</p>
+
+    <h3>확인된 제약 — 필드 절반이 없습니다</h3>
+    <p>기획서 §4가 요구한 항목 중 <strong>계약정보 전부와 설치정보 대부분, 이메일이 응답에 없습니다.</strong></p>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>섹션</th><th>기획서 요구</th><th>실 API</th></tr></thead>
+        <tbody>
+          <tr><td>기본정보</td><td class="sub">고객번호 · 구분 · 고객명 · 기기</td><td class="yes">전부 있음</td></tr>
+          <tr><td>사용자정보</td><td class="sub">부서 · 이름 · 전화1 · 전화2 · 이메일</td><td class="mid">전화2 · 이메일 없음</td></tr>
+          <tr><td>계약정보</td><td class="sub">청구일 · 계약시작 · 종료 · 갱신</td><td class="no">전부 없음</td></tr>
+          <tr><td>설치정보</td><td class="sub">설치일자 · 회선구분 · 통신사</td><td class="no">전부 없음</td></tr>
+          <tr><td class="sub">(신규)</td><td class="sub">—</td><td class="yes">주소 · 비고</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>값이 없는 게 아니라 <strong>응답에 항목 자체가 없어서</strong>, 빈 칸으로 늘어놓으면 "계약이 없는 고객"으로 오해됩니다. 지금은 해당 섹션을 통째로 생략해 보여줍니다.</p>
+
+    <div class="note">
+      <b>확인이 필요합니다.</b> 계약·설치정보를 화면에 넣으려면 API에 필드를 추가해야 합니다. 기술지원 담당자가 계약 종료일을 보고 판단하는 경우가 있다면 필요한 항목입니다.
+    </div>
+
+    <h3>보고 사항 — 빈 조회에 전체 목록이 반환됩니다</h3>
+    <p>경계 동작을 확인하다 발견했습니다.</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>요청</th><th>응답</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">{"info": [{"UserId": "e120452"}]}</td><td class="sub">정상 1건</td></tr>
+          <tr><td class="mono">{"info": [{"UserId": "E999999"}]}</td><td class="sub">빈 배열 (미등록)</td></tr>
+          <tr><td class="mono">{"info": []}</td><td class="no"><code>responseCode: -1</code> 인데 <strong>28건 반환</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="sub">잘못된 요청인데 데이터가 딸려 옵니다. 저희 쪽에서는 빈 조회를 보내지 않도록 막았지만, API 자체에서도 막는 편이 안전합니다. (건수만 확인했고 내용은 열지 않았습니다.)</p>
+
+    <h3>망 접근</h3>
+    <p>사무망(개발 PC)에서는 닿습니다. <strong>서버망(ai-node)에서는 닿지 않습니다.</strong> 현재는 조회·요청 기능이 개발 PC에서 돌고 있어 동작에 지장이 없지만, <strong>운영 전환 시에는 방화벽 허용이 필요합니다.</strong></p>
+  </section>
+
+  <!-- ============ 아직 안 된 것 ============ -->
+  <section>
+    <h2><span class="num">03</span>아직 하지 않은 것</h2>
+    <div class="quote">
+      지난 회의 — <b>"승인 사용자·전용 채널 화이트리스트, 최소 필드 전송, 호출속도 제한, 감사로그와 별도 제어계층을 기본조건으로 검토"</b>
+    </div>
+
+    <p>기본조건으로 제시된 다섯 중 <strong>채널 화이트리스트만</strong> 되어 있습니다.</p>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>항목</th><th>상태</th><th></th></tr></thead>
+        <tbody>
+          <tr><td>전용 채널 화이트리스트</td><td class="yes">있음</td><td class="sub">지정한 대화방 외에는 본문을 로그에도 남기지 않음</td></tr>
+          <tr><td>승인 사용자 화이트리스트</td><td class="no">없음</td><td class="sub">채널에 들어온 사람이면 누구나 사용 가능</td></tr>
+          <tr><td>최소 필드 전송</td><td class="no">없음</td><td class="sub">마스킹 스위치는 있으나 기본 꺼짐 (PoC 결정)</td></tr>
+          <tr><td>호출속도 제한</td><td class="no">없음</td><td class="sub">CRM·LLM 호출에 제한 없음</td></tr>
+          <tr><td>감사로그</td><td class="no">없음</td><td class="sub">일반 운영 로그만. 누가 무엇을 조회했는지 별도 기록 없음</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note">
+      <b>PoC 단계의 의도된 상태입니다.</b> 다만 <strong>실 고객 데이터가 연결된 지금부터는 성격이 달라집니다.</strong> 시연·검증 범위를 넘어 실사용을 시작하기 전에 위 항목들을 갖춰야 합니다. 특히 승인 사용자 제한과 감사로그는 실데이터를 다루는 이상 우선순위가 높습니다.
+    </div>
+
+    <h3>그 밖에</h3>
+    <ul>
+      <li><strong>양방향 상태 동기화</strong> — Dooray 업무 상태 변경은 되지만 CRM 쪽과 맞추는 것은 미착수. 업무 API 스펙 확인 후</li>
+      <li><strong>Dooray 라이선스·약관, 개인토큰 사용범위</strong> — 확인되지 않음. 현재 개인 액세스 토큰으로 동작하며, 이는 <strong>토큰 소유자와 동일한 권한</strong>입니다</li>
+    </ul>
+  </section>
+
+  <!-- ============ 결정 요청 ============ -->
+  <section>
+    <h2>결정을 청하는 사항</h2>
+
+    <ol>
+      <li>
+        <strong>CRM API 필드 추가</strong> — 계약정보·설치정보를 화면에 넣을 것인지.
+        넣는다면 API에 필드 추가가 필요합니다.
+      </li>
+      <li>
+        <strong>업무관리 위치</strong> — Dooray 프로젝트에 둘지, CRM으로 옮길지.
+        <span class="sub">「Dooray는 요청 인터페이스, CRM은 원장」 방향에는 동의합니다. 다만 CRM 업무 API가 저희가 쓰는 여덟 가지 동작을 지원해야 성립합니다. 확인 항목을 별도 문서로 정리했습니다.</span>
+      </li>
+      <li>
+        <strong>실사용 시작 시점과 보안 요건</strong> — 위 §3의 항목 중 어디까지를
+        선행 조건으로 볼지. 특히 승인 사용자 제한과 감사로그.
+      </li>
+      <li>
+        <strong>서버망 → CRM 방화벽</strong> — 운영 전환 시 필요합니다.
+        지금은 개발 PC에서 돌고 있어 급하지 않습니다.
+      </li>
+    </ol>
+
+    <div class="note pick">
+      <b>다음 단계 제안.</b> CRM 업무 API 스펙을 받는 것이 가장 앞섭니다 — 그것이 정해져야 원장 구조도, 상태 동기화도, 2차 시나리오도 설계할 수 있습니다. 그동안 저희는 보안 항목(승인 사용자·감사로그)을 먼저 채우겠습니다. 실데이터가 연결된 이상 그쪽이 먼저입니다.
+    </div>
+  </section>
+
+  <footer>
+    <div>연합인포맥스 AI부 · Dooray 기술지원 자동화 PoC</div>
+    <div class="mono">동작 흐름 docs/09-시연-흐름.html · 업무관리 검토 docs/10-업무관리-어디에-둘까.html</div>
+    <div class="mono">기술 상세 docs/08-두레이-연동-기술노트.html · 사용법 docs/사용법.html</div>
+  </footer>
+
+</div>
