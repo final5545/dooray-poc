@@ -24,6 +24,7 @@ FIELDS = (
     "dept", "manager", "phone_office", "phone_mobile", "email",
     "billing_date", "contract_start", "contract_end", "renewal_start",
     "install_date", "device", "line_type", "line_type2", "carrier",
+    "address", "note",              # 실 CRM API(2026-09-10)가 추가로 주는 것
 )
 
 # 내부 표준 키 → CRM 응답 키.

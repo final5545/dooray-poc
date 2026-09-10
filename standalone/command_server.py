@@ -44,14 +44,13 @@ from support.completion import news_card, reply_for_task, task_url  # noqa: E402
 from support.form import pick_form                     # noqa: E402
 from support.intake import PendingStore, create, prepare  # noqa: E402
 from support.repository import DoorayTicketRepository  # noqa: E402
-from crm.client import HttpCustomerRepository          # noqa: E402
+from crm.factory import build_repository                # noqa: E402
 
 APP_TOKEN = os.getenv("DOORAY_APP_TOKEN", "")
 TOKEN = os.getenv("DOORAY_TOKEN", "")
 PROJECT = os.getenv("DOORAY_SUPPORT_PROJECT", "")
 DOMAIN = os.getenv("DOORAY_DOMAIN", "infomax.dooray.com")
 SUPPORT_CHANNEL = os.getenv("DOORAY_SUPPORT_CHANNEL", "")
-CRM_BASE_URL = os.getenv("CRM_BASE_URL", "")
 
 repo = DoorayTicketRepository(TOKEN, PROJECT, domain=DOMAIN) if TOKEN and PROJECT else None
 
@@ -107,7 +106,7 @@ messenger = Messenger(TOKEN) if TOKEN else None
 INTAKE = PendingStore()
 
 # 고객사명 조회용. 없으면 양식에 적힌 고객명을 그대로 쓴다.
-CRM = HttpCustomerRepository(CRM_BASE_URL) if CRM_BASE_URL else None
+CRM, CRM_LABEL = build_repository()
 
 
 def _authorized(payload: dict) -> bool:
@@ -375,6 +374,7 @@ def main() -> None:
     print(f"  포트        : {port}")
     print(f"  프로젝트    : {PROJECT or '(미설정)'}")
     print(f"  appToken    : {'설정됨' if APP_TOKEN else '미설정 — 검증 생략'}")
+    print(f"  CRM         : {CRM_LABEL}")
     print("=" * 60)
     print()
     HTTPServer(("0.0.0.0", port), Handler).serve_forever()

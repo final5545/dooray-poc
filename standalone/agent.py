@@ -38,16 +38,14 @@ from dotenv import load_dotenv
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _ROOT)
 load_dotenv(os.path.join(_ROOT, ".env"))
-from crm.client import (                                 # noqa: E402
-    FakeCustomerRepository,
-    HttpCustomerRepository,
-)
+from crm.factory import build_repository                 # noqa: E402
 from crm.service import handle_message as crm_handle     # noqa: E402
 from support.channels import channel_for_member, direct_channels  # noqa: E402
 from routing import RouteConfigError, parse_routes       # noqa: E402
 from support.completion import handle_news, news_card    # noqa: E402
 from support.intake import PendingStore                  # noqa: E402
 from support.intake import handle as intake_handle       # noqa: E402
+from support.intake import handle_natural                # noqa: E402
 from support.llm import OpenAICompatExtractor            # noqa: E402
 from support.llm_anthropic import AnthropicExtractor      # noqa: E402
 from support.repository import DoorayTicketRepository    # noqa: E402
@@ -94,26 +92,9 @@ HANDLED_TYPES = {TYPE_NORMAL, TYPE_FILE, TYPE_REPLY}
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-7s %(message)s")
 log = logging.getLogger("dooray")
 
-# CRM 저장소.
-#   CRM_BASE_URL 이 있으면 HTTP로 붙는다 (모의 서버 또는 실 CRM).
-#   없으면 메모리 Fake — 기획서 §5 화면 예시 1건뿐이다.
-# 실 CRM 전환 시 바뀌는 것은 URL과 필드 매핑뿐이고 아래 코드는 그대로다.
-CRM_BASE_URL = os.getenv("CRM_BASE_URL", "")
-CRM_RESULT_PATH = os.getenv("CRM_RESULT_PATH", "result")
-CRM_URL_TEMPLATE = os.getenv("CRM_URL_TEMPLATE", "{base}/customers/{code}")
-CRM_TIMEOUT = float(os.getenv("CRM_TIMEOUT", "2.5"))
-
-if CRM_BASE_URL:
-    CRM_REPO = HttpCustomerRepository(
-        CRM_BASE_URL,
-        url_template=CRM_URL_TEMPLATE,
-        result_path=CRM_RESULT_PATH,
-        timeout=CRM_TIMEOUT,
-    )
-    CRM_LABEL = f"HTTP {CRM_BASE_URL} (timeout {CRM_TIMEOUT}s)"
-else:
-    CRM_REPO = FakeCustomerRepository()
-    CRM_LABEL = "메모리 Fake (1건)"
+# CRM 저장소. 어느 것을 쓸지는 CRM_KIND / CRM_BASE_URL 이 정한다(crm/factory.py).
+# 기동 배너에 CRM_LABEL 을 찍어 **실 API인지 모의 서버인지** 눈으로 확인한다.
+CRM_REPO, CRM_LABEL = build_repository()
 
 # 기술지원 티켓 저장소는 support 라우트가 있을 때만 만든다.
 TICKET_REPO = None
@@ -256,6 +237,13 @@ def handle(client: DoorayClient, channel: str, text: str, sender: str,
             on_created=WATCHER.track if WATCHER else None,
             announce=_announce_to_support(client, channel),
         )
+        if reply is None:
+            # '#' 없이 말하듯 쓴 요청인가. 아니면 None이 와서 조회로 넘어간다.
+            reply = handle_natural(
+                text, channel=channel, user_id=sender, store=INTAKE,
+                tickets=TICKET_REPO, customers=CRM_REPO, llm=LLM,
+                origin_message=content.get("id"),
+            )
         if reply is None:
             reply = crm_handle(text, CRM_REPO)
     elif route == "support":

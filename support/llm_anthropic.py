@@ -11,11 +11,15 @@ Anthropic API는 OpenAI 호환이 아니라 공식 SDK를 쓴다(llm.py의 OpenA
 모델이 코드펜스나 설명문을 붙일 수 없다. 그래도 parse_enrichment()를 거쳐
 요청유형 enum 검증과 폴백을 한 번 더 태운다.
 """
+import json
 import logging
 
 import anthropic
 
 from .extractor import SupportRequest
+from .intent import OUTPUT_SCHEMA as INTENT_SCHEMA
+from .intent import SYSTEM_PROMPT as INTENT_PROMPT
+from .intent import Intent, parse_intent
 from .llm import SYSTEM_PROMPT, Enrichment, parse_enrichment
 
 log = logging.getLogger(__name__)
@@ -54,37 +58,57 @@ class AnthropicExtractor:
         self._disabled = False      # 인증 실패 시 차단 (회로 차단기)
         self.last_usage: tuple[int, int] | None = None   # (입력, 출력) 토큰
 
-    def enrich(self, text: str, base: SupportRequest) -> Enrichment:
-        if self._disabled:
-            return Enrichment()
+    def _call(self, system: str, text: str, schema: dict) -> str | None:
+        """구조화 출력 1회. 실패하면 None — 호출자가 규칙 기반으로 눕는다.
 
+        인증·모델 오류는 재시도해도 낫지 않으므로 이 세션에서 아예 끈다.
+        429·5xx 는 다음 메시지에서 다시 시도한다.
+        """
+        if self._disabled:
+            return None
         try:
             res = self._client.messages.create(
                 model=self.model,
                 max_tokens=MAX_TOKENS,
-                system=SYSTEM_PROMPT,
+                system=system,
                 messages=[{"role": "user", "content": text}],
-                output_config={"format": OUTPUT_SCHEMA},
+                output_config={"format": schema},
             )
         except (anthropic.AuthenticationError, anthropic.PermissionDeniedError) as e:
-            # 재시도해도 낫지 않는다. 매 메시지마다 두드리지 않도록 이 세션에서는 끈다.
             self._disabled = True
-            log.error("Claude 인증 실패 — LLM 보강을 끕니다 (키 확인 필요): %s", e)
-            return Enrichment()
+            log.error("Claude 인증 실패 — LLM을 끕니다 (키 확인 필요): %s", e)
+            return None
         except anthropic.NotFoundError as e:
             self._disabled = True
-            log.error("Claude 모델을 찾을 수 없음 — LLM 보강을 끕니다: %s", e)
-            return Enrichment()
+            log.error("Claude 모델을 찾을 수 없음 — LLM을 끕니다: %s", e)
+            return None
         except anthropic.APIStatusError as e:
-            # 429·5xx 등 일시적 오류는 다음 메시지에서 다시 시도한다
-            log.warning("Claude 호출 실패(%s) — 규칙 기반 결과만 사용", e.status_code)
-            return Enrichment()
+            log.warning("Claude 호출 실패(%s) — 규칙 기반만 사용", e.status_code)
+            return None
         except Exception:
-            log.warning("Claude 호출 실패 — 규칙 기반 결과만 사용", exc_info=False)
-            return Enrichment()
+            log.warning("Claude 호출 실패 — 규칙 기반만 사용", exc_info=False)
+            return None
 
         u = res.usage
         log.debug("Claude usage: in=%s out=%s", u.input_tokens, u.output_tokens)
         self.last_usage = (u.input_tokens, u.output_tokens)
-        content = next((b.text for b in res.content if b.type == "text"), "")
-        return parse_enrichment(content)
+        return next((b.text for b in res.content if b.type == "text"), "")
+
+    def enrich(self, text: str, base: SupportRequest) -> Enrichment:
+        content = self._call(SYSTEM_PROMPT, text, OUTPUT_SCHEMA)
+        return parse_enrichment(content) if content is not None else Enrichment()
+
+    def classify(self, text: str) -> Intent:
+        """조회인가 요청인가. 판정 못 하면 조회로 눕는다.
+
+        요청으로 잘못 보면 엉뚱한 업무가 생기고, 두레이에는 업무 삭제 API가
+        없다. 확신이 없을 때 조회로 눕는 편이 되돌리기 쉽다.
+        """
+        content = self._call(INTENT_PROMPT, text, INTENT_SCHEMA)
+        if content is None:
+            return Intent()
+        try:
+            return parse_intent(json.loads(content))
+        except (ValueError, TypeError):
+            log.warning("의도 분류 응답을 읽지 못했습니다 — 조회로 처리")
+            return Intent()

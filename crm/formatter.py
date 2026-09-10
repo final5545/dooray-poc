@@ -33,6 +33,9 @@ SECTIONS: list[tuple[str, list[tuple[str, str]]]] = [
         ("고객번호", "code"),
         ("고객구분", "customer_type"),   # 계약/무료/시험/청구보류/해지
         ("고객명", "name"),
+        # 실 CRM은 고객구분과 기기를 "무료(고객기기)" 한 칸으로 준다.
+        # 한 몸으로 오는 값이라 같은 섹션에 둔다(crm/infomax.py).
+        ("기기", "device"),
     ]),
     ("사용자정보", [
         ("부서", "dept"),
@@ -49,10 +52,16 @@ SECTIONS: list[tuple[str, list[tuple[str, str]]]] = [
     ]),
     ("설치정보", [
         ("설치일자", "install_date"),
-        ("기기", "device"),              # 고객/연합
         ("회선구분", "line_type"),        # 고객/ADSL 등
         ("회선구분2", "line_type2"),      # 사내랜/외부회선
         ("통신사", "carrier"),            # SKT/KT/LGU+
+    ]),
+    # 실 CRM API(2026-09-10)가 새로 주는 것들. 모의 CRM에는 없어 생략된다.
+    ("주소", [
+        ("주소", "address"),
+    ]),
+    ("비고", [
+        ("비고", "note"),
     ]),
 ]
 
@@ -87,10 +96,21 @@ def format_customer_card(data: dict, mask: bool | None = None) -> str:
 
     blocks: list[str] = []
     for title, fields in SECTIONS:
+        values = [(label, _value(data, key, mask)) for label, key in fields]
+        # 🔴 값이 하나도 없는 섹션은 통째로 생략한다.
+        #
+        #    기획서 §4의 "Null이면 공란" 규칙은 **CRM에 그 필드가 있는데 값이
+        #    빈 경우**를 말한다. 실 CRM API는 계약정보·설치정보를 아예 주지
+        #    않는데(crm/infomax.py 참조), 그걸 빈 칸으로 늘어놓으면 "계약이
+        #    없는 고객"으로 오해된다. 없는 것과 안 주는 것은 다르다.
+        if not any(v for _, v in values):
+            continue
         lines = [f"[{title}]"]
-        lines += [f"{label} : {_value(data, key, mask)}" for label, key in fields]
+        lines += [f"{label} : {value}" for label, value in values]
         blocks.append("\n".join(lines))
 
+    if not blocks:
+        return "조회 결과가 없습니다."
     return "\n\n".join(blocks)
 
 

@@ -18,6 +18,7 @@ import time
 from dataclasses import dataclass
 
 from crm.client import CustomerRepository
+from crm.parser import parse_all_customer_codes
 
 from .form import (
     CANCEL,
@@ -33,6 +34,7 @@ from .form import (
     parse_form,
     to_request,
 )
+from .intent import form_title, might_be_request, to_form_text
 from .llm import LLMExtractor
 from .repository import TicketRepository
 from .ticket import build_body, build_title
@@ -168,6 +170,53 @@ def prepare(form_text: str, *, channel: str, user_id: str,
     item = Pending(data=data, subject=subject, body=body, at=time.time(),
                    customer_name=customer_name)
     return item, build_preview(data, subject, customer_name)
+
+
+def handle_natural(text: str, *, channel: str, user_id: str, store: PendingStore,
+                   tickets=None, customers=None, llm=None,
+                   origin_message: str | None = None,
+                   today: _dt.date | None = None) -> str | None:
+    """'#' 없이 말하듯 쓴 요청 → 확인 화면. 요청이 아니면 None.
+
+        "E230096 이전 요청할래"
+          → 이전요청서를 대신 채워 확인 화면을 띄운다
+
+    None 을 돌려주면 호출자가 평소대로 고객정보 조회로 넘어간다. 조회 메시지를
+    삼키면 안 되므로 **확신이 없을 때는 항상 None** 이다.
+
+    LLM이 없거나 실패해도 None 이다. 그러면 지금까지처럼 조회만 되고, 요청은
+    #이전 → #기술정보 로 하면 된다. 기능이 하나 줄 뿐 망가지지는 않는다.
+    """
+    codes = parse_all_customer_codes(text or "")
+    if not codes or tickets is None or llm is None:
+        return None
+
+    # 규칙이 먼저다. 요청 유형 키워드가 없으면 LLM을 부르지 않는다 —
+    # 평범한 조회에 매번 API를 두드릴 이유가 없다.
+    if not might_be_request(text):
+        return None
+
+    classify = getattr(llm, "classify", None)
+    if not callable(classify):
+        return None
+    try:
+        intent = classify(text)
+    except Exception:
+        log.exception("의도 분류 실패 — 조회로 넘긴다")
+        return None
+    if not intent.is_request:
+        return None
+
+    # 사람이 손으로 채운 것과 같은 모양을 만들어 같은 경로로 흘린다
+    form_text = to_form_text(intent, codes[0], form_title(intent.request_type))
+    item, message = prepare(form_text, channel=channel, user_id=user_id,
+                            tickets=tickets, customers=customers,
+                            origin_message=origin_message, today=today)
+    if item is None:
+        return None                 # 조립 실패 — 조회로 넘긴다
+    store.put(channel, user_id, item)
+    log.info("자연어 접수: %s", item.subject)
+    return message
 
 
 def _submit(rest: str, *, channel, user_id, store, tickets, customers, llm,
