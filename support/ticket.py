@@ -71,6 +71,28 @@ def mark_notified(body: str, how: str = "button") -> str:
     return f"{(body or '').rstrip()}\n{NOTIFIED_LINE} {how}"
 
 
+def shorten_customer(name: str | None) -> str | None:
+    """제목에 쓸 만큼 고객명을 줄인다.
+
+    사람이 양식의 「고객명」에 부서와 담당자까지 적는 일이 잦다.
+
+        "미래에셋자산운용 채권운용본부 투자전략운용부 정상호 매니저"
+
+    CRM 조회가 되면 회사명만 오므로 문제가 없는데, CRM에 없는 번호(신규
+    고객·오타)면 이 긴 문장이 그대로 제목에 들어간다(2026-09-10 실측).
+
+    어절이 셋 이상이면 첫 어절만 쓴다. 한국 회사명은 대개 붙여 쓰므로
+    첫 어절이 회사명인 경우가 많고, "SK 하이닉스"처럼 두 어절인 이름은
+    그대로 남는다.
+    """
+    if not name:
+        return None
+    parts = str(name).split()
+    if not parts:
+        return None
+    return parts[0] if len(parts) >= 3 else " ".join(parts)
+
+
 def build_title(req: SupportRequest, customer_name: str | None = None,
                 status_label: str = DEFAULT_STATUS) -> str:
     """예: 'BNK증권 신규설치 [접수 8/28]'
@@ -78,7 +100,7 @@ def build_title(req: SupportRequest, customer_name: str | None = None,
     기획서 예시의 '[방문예정 8/14]'는 담당자가 일정을 확정한 뒤의 상태다.
     AI 자동 등록 시점은 '접수'이므로 기본값을 그렇게 둔다.
     """
-    head = " ".join(p for p in (customer_name, req.request_type) if p)
+    head = " ".join(p for p in (shorten_customer(customer_name), req.request_type) if p)
     if not head:
         head = ", ".join(req.customer_codes) or "기술지원 요청"
 

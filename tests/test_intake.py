@@ -186,3 +186,38 @@ class TestCrmUnavailable:
                tickets=tickets, customers=self._Down(), today=TODAY)
         got = handle("#확인", channel=CH, user_id=USER, store=store, tickets=tickets)
         assert "접수되었습니다" in got and tickets.created[0][0].startswith("장비/설비 이전")
+
+
+class TestLongCustomerName:
+    """양식의 「고객명」에 부서·담당자까지 적는 일이 잦다.
+
+    CRM 조회가 되면 회사명만 오지만, CRM에 없는 번호면 그 긴 문장이 제목에
+    들어간다(2026-09-10 실측). 제목만 줄이고 본문에는 원문을 남긴다.
+    """
+
+    class _Empty:
+        def fetch(self, code):
+            return None          # CRM에 없는 번호
+
+    LONG = """이전요청서
+[기본정보]
+고객번호 : E999001
+고객명 : 미래에셋자산운용 채권운용본부 투자전략운용부 정상호 매니저
+[요청정보]
+메모 : 확인용"""
+
+    def _run(self, store, tickets):
+        handle(f"#기술정보\n{self.LONG}", channel=CH, user_id=USER, store=store,
+               tickets=tickets, customers=self._Empty(), today=TODAY)
+        return handle("#확인", channel=CH, user_id=USER, store=store, tickets=tickets)
+
+    def test_제목에는_회사명만_쓴다(self, store, tickets):
+        self._run(store, tickets)
+        subject = tickets.created[0][0]
+        assert subject.startswith("미래에셋자산운용 장비/설비 이전")
+        assert "정상호" not in subject and "투자전략운용부" not in subject
+
+    def test_본문에는_적힌_그대로_남긴다(self, store, tickets):
+        # 담당자 정보를 버리면 안 된다 — 줄이는 것은 제목뿐이다
+        self._run(store, tickets)
+        assert "정상호 매니저" in tickets.created[0][1]

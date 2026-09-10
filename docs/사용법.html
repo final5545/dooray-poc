@@ -245,11 +245,12 @@ footer .mono{font-family:"IBM Plex Mono",monospace}
   <header class="masthead">
     <div class="eyebrow">연합인포맥스 AI부 · PoC</div>
     <h1>기술지원 도우미 사용법</h1>
-    <p class="lede">두레이 대화방에 평소처럼 쓰면 고객정보가 돌아오고, 기술지원 요청이 업무로 등록되고, 버튼 한 번으로 상태가 바뀝니다. 잘못 눌렀으면 되돌리면 됩니다. 아래는 그 세 가지를 쓰는 법입니다.</p>
+    <p class="lede">두레이 대화방에 평소처럼 쓰면 고객정보가 돌아오고, 기술지원 요청이 업무로 등록되고, 버튼 한 번으로 상태가 바뀝니다. 잘못 눌렀으면 되돌리면 됩니다.</p>
     <div class="meta">
       <span><b>기준일</b> 2026.09.03</span>
       <span><b>커맨드</b> /처리</span>
-      <span><b>서버</b> dooray.infomaxai.com</span>
+      <span><b>커맨드</b> /처리 · /접수</span>
+      <span><b>CRM</b> 사내 실 API</span>
     </div>
   </header>
 
@@ -261,12 +262,12 @@ footer .mono{font-family:"IBM Plex Mono",monospace}
     <div class="cols">
       <div class="box">
         <h3><span class="dot on"></span>에이전트 — 정원석 맥</h3>
-        <p>두레이 소켓을 붙들고 메시지를 받습니다. 고객정보 조회, 기술지원 접수, 완료 감지가 전부 여기서 일어납니다.</p>
-        <div class="mono">standalone/agent.py<br>standalone/mock_crm.py :8900</div>
+        <p>두레이 소켓을 붙들고 메시지를 받습니다. 고객정보 조회, 자연어 요청, 양식 접수, 완료 감지가 전부 여기서 일어납니다. <strong>사내 CRM에 닿는 것도 여기뿐입니다.</strong></p>
+        <div class="mono">standalone/agent.py</div>
       </div>
       <div class="box">
         <h3><span class="dot on"></span>커맨드 서버 — ai-node-1</h3>
-        <p>두레이가 <b>바깥에서 우리를 호출</b>하는 창구입니다. <code>/처리</code> 목록과 버튼 클릭을 받고, 완료되면 방에 공지하고 요청자에게 알립니다.</p>
+        <p>두레이가 <b>바깥에서 우리를 호출</b>하는 창구입니다. <code>/처리</code> · <code>/접수</code> 와 버튼 클릭을 받고, 완료되면 방에 공지하고 요청자에게 알립니다. CRM에는 닿지 못합니다.</p>
         <div class="mono">docker service dooray_command<br>https://dooray.infomaxai.com</div>
       </div>
     </div>
@@ -289,7 +290,7 @@ footer .mono{font-family:"IBM Plex Mono",monospace}
       <div class="chat-body">
         <div class="msg out">
           <span class="who">정원석</span>
-          <div class="bubble">E230096 계약 언제 끝나지?</div>
+          <div class="bubble">E120452 담당자 누구야</div>
         </div>
         <div class="msg">
           <span class="who">기술지원 도우미</span>
@@ -327,39 +328,143 @@ footer .mono{font-family:"IBM Plex Mono",monospace}
       <li>등록되지 않은 번호는 조회할 수 없다는 안내가 옵니다.</li>
     </ul>
 
-    <h3>시연용 고객번호</h3>
+    <h3>화면에 나오는 항목</h3>
+    <p class="sub">사내 CRM이 주는 것만 나옵니다. 값이 하나도 없는 섹션은 통째로 생략됩니다.</p>
     <div class="tablewrap">
       <table>
-        <thead><tr><th class="mono">고객번호</th><th>고객명</th><th>구분</th><th>쓰임새</th></tr></thead>
+        <thead><tr><th>섹션</th><th>항목</th><th>나오나</th></tr></thead>
         <tbody>
-          <tr><td class="mono">E230096</td><td>미래에셋자산운용</td><td>계약</td><td class="sub">기본 사례</td></tr>
-          <tr><td class="mono">E21016</td><td>비엔케이자산운용</td><td>계약</td><td class="sub">5자리 번호도 인식됨</td></tr>
-          <tr><td class="mono">E200105</td><td>비엔케이자산운용</td><td>계약</td><td class="sub">같은 회사 다른 부서</td></tr>
-          <tr><td class="mono">E140605</td><td>에이치라인해운</td><td>계약</td><td class="sub">기본 사례</td></tr>
-          <tr><td class="mono">E050282</td><td>한국거래소</td><td>계약</td><td class="sub">갱신 임박 건</td></tr>
-          <tr><td class="mono">E050102</td><td>한국거래소</td><td>시험</td><td class="sub">청구일이 빈 사례</td></tr>
-          <tr><td class="mono">E050345</td><td>한국거래소</td><td>계약</td><td class="sub">한 번에 3건 조회용</td></tr>
-          <tr><td class="mono">E110220</td><td>대한선물</td><td>해지</td><td class="sub">해지 고객 표시</td></tr>
-          <tr><td class="mono">E999998</td><td>—</td><td>—</td><td class="sub">5초 지연 → 타임아웃 안내</td></tr>
+          <tr><td>기본정보</td><td class="sub">고객번호 · 고객구분 · 고객명 · 기기</td><td class="mono">✓</td></tr>
+          <tr><td>사용자정보</td><td class="sub">부서 · 이름 · 전화1</td><td class="mono">✓</td></tr>
+          <tr><td>주소</td><td class="sub">주소 · 상세주소</td><td class="mono">✓</td></tr>
+          <tr><td>비고</td><td class="sub">비고</td><td class="mono">✓</td></tr>
+          <tr><td class="sub">사용자정보 일부</td><td class="sub">전화2 · 이메일</td><td class="sub">빈 칸</td></tr>
+          <tr><td class="sub">계약정보</td><td class="sub">청구일 · 계약시작 · 종료 · 갱신</td><td class="sub">섹션 생략</td></tr>
+          <tr><td class="sub">설치정보</td><td class="sub">설치일자 · 회선구분 · 통신사</td><td class="sub">섹션 생략</td></tr>
         </tbody>
       </table>
     </div>
 
     <div class="note">
-      <b>지금 붙어 있는 건 모의 CRM입니다.</b> 실제 사내 CRM이 아니고 데이터도 전부 가짜입니다. 시연 때 이 사실을 반드시 밝히세요. 실 API 스펙이 나오면 <code>.env</code>의 <code>CRM_BASE_URL</code> 한 줄만 바꾸면 되고 코드는 그대로입니다.
+      <b>계약정보와 설치정보는 CRM API가 주지 않습니다.</b> 값이 없는 게 아니라 응답에 항목 자체가 없어서, 빈 칸으로 늘어놓으면 "계약이 없는 고객"으로 오해됩니다. 그래서 섹션을 통째로 생략합니다. 필요하면 CRM 담당자께 필드 추가를 요청해야 합니다.
     </div>
   </section>
 
-  <!-- ============ 기술지원 접수 ============ -->
+  <!-- ============ 요청하기 ============ -->
   <section>
-    <h2><span class="num">01</span>기술지원 접수</h2>
-    <p><strong>기술 지원 현황판</strong> 대화방에 요청을 쓰면 두레이 업무로 자동 등록됩니다. 여기도 양식이 없습니다 — 사람마다 쓰는 모양이 달라서 규칙만으로는 안 되기에 <strong>Claude Haiku 4.5</strong>가 문장을 읽고 보완합니다.</p>
+    <h2><span class="num">01</span>요청하기 — 세 가지 길</h2>
+    <p>같은 결과에 이르는 길이 셋입니다. <strong>어느 쪽이든 확인을 거쳐 업무가 만들어집니다</strong> — 자동으로 생기지 않습니다.</p>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>방법</th><th>어디서</th><th>이럴 때</th></tr></thead>
+        <tbody>
+          <tr><td><strong>말하듯 쓴다</strong></td><td class="sub">CRM 조회</td><td class="sub">간단한 요청. 가장 빠르다</td></tr>
+          <tr><td><strong>양식을 채운다</strong></td><td class="sub">CRM 조회</td><td class="sub">전화로 받아 적을 때. 빠뜨리지 않는다</td></tr>
+          <tr><td><strong>그냥 쓴다</strong></td><td class="sub">기술 지원 현황판</td><td class="sub">여러 건을 한 번에</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>① 말하듯 쓴다</h3>
+    <p><strong>CRM 조회</strong> 방에서 그냥 말하면 됩니다. Claude가 조회인지 요청인지 가려내고, 요청이면 양식을 대신 채웁니다.</p>
 
     <div class="chat">
-      <div class="chat-head">
-        <span class="room">기술 지원 현황판</span>
-        <span class="hint">주제 대화방</span>
+      <div class="chat-head"><span class="room">CRM 조회</span></div>
+      <div class="chat-body">
+        <div class="msg out">
+          <span class="who">정원석</span>
+          <div class="bubble">E120452 이전 요청할래</div>
+        </div>
+        <div class="msg">
+          <span class="who">기술지원 도우미</span>
+          <div class="bubble">아래 내용으로 업무를 생성할까요?
+
+제목 : 연합인포맥스 장비/설비 이전 [접수]
+고객번호 : E120452
+고객명 : 연합인포맥스
+
+생성하려면 #확인 라고 입력해 주세요.
+취소하려면 #취소 입니다. 버튼을 쓰려면 /접수 를 입력하세요.</div>
+        </div>
       </div>
+    </div>
+
+    <ul>
+      <li>희망일시·연락처·메모도 함께 읽습니다 — <em>"E050282 다음주 화요일 오후 신규설치 부탁드립니다. 김재영 차장 051-662-2635"</em></li>
+      <li><strong>조회는 조회로 갑니다.</strong> "계약 언제 끝나지?", "담당자 누구야" 같은 말은 고객 카드가 나옵니다.</li>
+      <li>애매하면 조회 쪽으로 기웁니다. 요청으로 잘못 보면 엉뚱한 업무가 생기니까요.</li>
+    </ul>
+
+    <h3>② 양식을 받아 채운다</h3>
+    <p>전화로 요청을 받아 적을 때는 양식이 낫습니다. 빠뜨리기 쉬운 항목을 미리 물어 주니까요.</p>
+
+    <div class="chat">
+      <div class="chat-head"><span class="room">CRM 조회</span></div>
+      <div class="chat-body">
+        <div class="msg out"><span class="who">정원석</span><div class="bubble">#이전</div></div>
+        <div class="msg">
+          <span class="who">기술지원 도우미</span>
+          <div class="bubble mono">이전요청서
+[기본정보]
+고객번호 :
+고객명 :
+[요청정보]
+희망일시 :
+연락처 :
+메모 :</div>
+        </div>
+        <div class="msg out">
+          <span class="who">정원석</span>
+          <div class="bubble mono">#기술정보
+이전요청서
+[기본정보]
+고객번호 : E120452
+고객명 : 연합인포맥스
+[요청정보]
+희망일시 : 9월 30일 오후
+연락처 : 박청호 02-398-5222
+메모 : 모니터 2대 추가</div>
+        </div>
+      </div>
+    </div>
+
+    <p>채운 양식을 <code>#기술정보</code> 아래에 붙여 보내면 확인 화면이 나옵니다. <code>#양식</code> 을 치면 쓸 수 있는 양식 <strong>11종</strong>이 나옵니다.</p>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th class="mono">명령</th><th>양식</th><th class="mono">명령</th><th>양식</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">#이전</td><td class="sub">이전요청서</td><td class="mono">#시험</td><td class="sub">시험아이디요청서</td></tr>
+          <tr><td class="mono">#신규</td><td class="sub">신규설치요청서</td><td class="mono">#전환</td><td class="sub">전환요청서</td></tr>
+          <tr><td class="mono">#교체</td><td class="sub">노후교체요청서</td><td class="mono">#해지</td><td class="sub">해지요청서</td></tr>
+          <tr><td class="mono">#장애</td><td class="sub">장애신고서</td><td class="mono">#청구</td><td class="sub">청구변경요청서</td></tr>
+          <tr><td class="mono">#업그레이드</td><td class="sub">SW업그레이드요청서</td><td class="mono">#계산서</td><td class="sub">세금계산서요청서</td></tr>
+          <tr><td class="mono">#회수</td><td class="sub">회수요청서</td><td class="mono">#양식</td><td class="sub">목록 보기</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>확인하고 등록 — 두 가지</h3>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>방법</th><th>어떻게</th><th>미리보기가 보이는 범위</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">#확인</td><td class="sub">타이핑 — 글자입니다, 눌러지지 않습니다</td><td class="sub">방 전체</td></tr>
+          <tr><td class="mono">/접수</td><td class="sub">커맨드 → <strong>[생성] [취소] 버튼</strong></td><td class="sub">본인만</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note plain">
+      <b><code>/접수</code> 로 만들 때는 양식의 「고객명」 칸을 채워 주세요.</b> 이 경로는 서버가 처리하는데 <strong>서버에서는 CRM 조회가 되지 않습니다</strong>(사내망 대역 차이). 비워 두면 제목이 <code>장비/설비 이전 [접수]</code> 처럼 회사명 없이 만들어집니다. <code>#확인</code> 은 맥이 처리하므로 비워 두어도 CRM이 채웁니다.
+    </div>
+
+    <h3>③ 그냥 쓴다</h3>
+    <p><strong>기술 지원 현황판</strong> 방에서는 양식도 명령도 없이 쓰면 바로 등록됩니다. 여러 건을 한 번에 낼 때 편합니다.</p>
+
+    <div class="chat">
+      <div class="chat-head"><span class="room">기술 지원 현황판</span></div>
       <div class="chat-body">
         <div class="msg out">
           <span class="who">정원석</span>
@@ -381,7 +486,7 @@ footer .mono{font-family:"IBM Plex Mono",monospace}
     <div class="flow">
       <div class="step"><span class="actor">규칙</span><span class="what">고객번호와 희망일을 뽑습니다. 형식이 고정된 값이라 정규식이 더 빠르고 정확하며 비용이 없습니다.</span></div>
       <div class="step"><span class="actor">Claude</span><span class="what">문장을 읽고 요청 유형과 제목을 다듬습니다. 자유서술이라 규칙으로는 안 되는 부분입니다.</span></div>
-      <div class="step"><span class="actor">두레이</span><span class="what">업무를 등록하고 요청자를 참조자로 넣습니다. 그래서 등록 알림이 요청자에게 갑니다.</span></div>
+      <div class="step"><span class="actor">두레이</span><span class="what">업무를 등록하고 접수 회신에 링크를 붙입니다.</span></div>
     </div>
 
     <h3>자동으로 붙는 요청 유형</h3>
@@ -580,9 +685,9 @@ RE: ✅ 기술지원 요청이 처리 완료되었습니다.
 
     <h3>맥 — 에이전트</h3>
 <pre><span class="p">$</span> cd ~/infomax/dooray-poc
-<span class="p">$</span> python standalone/mock_crm.py 8900 &amp;   <span class="c"># 모의 CRM, 먼저</span>
 <span class="p">$</span> python standalone/agent.py             <span class="c"># 이 창은 열어둘 것</span></pre>
-    <p class="sub">기동하면 라우팅 대상 대화방과 폴링 주기가 배너에 찍힙니다. 창을 닫으면 멎습니다.</p>
+    <p class="sub">기동하면 배너에 라우팅 대상 대화방과 <strong>어느 CRM을 보는지</strong>가 찍힙니다. 창을 닫으면 멎습니다.</p>
+<pre><span class="c">CRM: 사내 CRM 실 API http://190.1.195.104:8001/PCH/LoadCustData (timeout 2.5s)</span></pre>
 
     <h3>서버 — 커맨드</h3>
 <pre><span class="p">$</span> ssh ai-node1
@@ -606,8 +711,13 @@ RE: ✅ 기술지원 요청이 처리 완료되었습니다.
           </tr>
           <tr>
             <td>조회는 되는데 "일시적으로 조회할 수 없습니다"</td>
-            <td class="mono sub">lsof -i :8900</td>
-            <td class="sub">모의 CRM이 안 떠 있음</td>
+            <td class="mono sub">맥의 agent.py 창</td>
+            <td class="sub">CRM 응답 지연이나 사내망 문제</td>
+          </tr>
+          <tr>
+            <td>"등록되지 않은 고객번호입니다"</td>
+            <td class="mono sub">번호 확인</td>
+            <td class="sub">사내 CRM에 없는 번호. 예전 시연용 번호(E230096 등)는 이제 없음</td>
           </tr>
           <tr>
             <td><code>/처리</code>를 쳐도 아무 반응 없음</td>

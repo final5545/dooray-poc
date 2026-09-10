@@ -290,3 +290,24 @@ class TestPickFormScope:
 
     def test_내_것이_없으면_남의_것을_주지_않는다(self):
         assert pick_form([self._msg(FILLED, "u2")], "u1") is None
+
+
+class TestShortenCustomer:
+    def test_어절이_셋_이상이면_첫_어절만(self):
+        from support.ticket import shorten_customer
+        assert shorten_customer("미래에셋자산운용 채권운용본부 정상호 매니저") == "미래에셋자산운용"
+
+    def test_두_어절_이름은_지킨다(self):
+        # "SK 하이닉스" 같은 회사명을 "SK"로 자르면 안 된다
+        from support.ticket import shorten_customer
+        assert shorten_customer("SK 하이닉스") == "SK 하이닉스"
+
+    def test_한_어절은_그대로(self):
+        from support.ticket import shorten_customer
+        assert shorten_customer("연합인포맥스") == "연합인포맥스"
+
+    def test_빈_값(self):
+        from support.ticket import shorten_customer
+        assert shorten_customer(None) is None
+        assert shorten_customer("") is None
+        assert shorten_customer("   ") is None
