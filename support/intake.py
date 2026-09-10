@@ -13,6 +13,7 @@
 """
 import datetime as _dt
 import logging
+import re
 import threading
 import time
 from dataclasses import dataclass
@@ -83,6 +84,43 @@ class PendingStore:
         with self._lock:
             return self._items.pop((channel, user), None) is not None
 
+    def waiting(self, channel: str, user: str) -> bool:
+        """확인을 기다리는 중인가. 만료된 것은 아니라고 본다."""
+        with self._lock:
+            item = self._items.get((channel, user))
+        return item is not None and (time.time() - item.at) <= self._ttl
+
+
+# 확인을 기다리는 동안에는 짧은 대답을 그대로 알아듣는다.
+#
+# 2026-09-10 회의: "해시·슬래시 명령과 다단계 양식은 사용성이 떨어지므로
+# 자연어 요청과 1회 확인 중심으로 단순화". #확인 을 외우게 하는 대신
+# 사람이 실제로 쓰는 말을 받는다.
+#
+# ⚠️ **대기 중일 때만** 이 판정을 한다. 평소의 "네"는 그냥 대화다.
+_YES = re.compile(
+    r"^\s*(네+|넵|예+|응+|ㅇㅇ+|어+|그래+|좋아+|좋|"
+    r"맞아+|맞|생성|등록|진행|확인|해|부탁|"
+    r"ok|okay|yes|yep|y|go)"
+    r"(요|용|여|아요|습니다|하자|주세요|주십시오|줘|줄래|드려요|드립니다|해|시죠)*"
+    r"\s*[.!~ㅋㅎ]*\s*$", re.IGNORECASE)
+_NO = re.compile(
+    r"^\s*(아니+|아뇨|안+돼+|안+되|하지\s*마|취소|말아|말|빼|"
+    r"no|nope|n|cancel)"
+    r"(요|용|여|에요|예요|입니다|자|줘|주세요|해)*"
+    r"\s*[.!~]*\s*$", re.IGNORECASE)
+
+
+def read_answer(text: str) -> str | None:
+    """짧은 대답 → 'yes' | 'no'. 대답이 아니면 None."""
+    if not text:
+        return None
+    if _YES.match(text):
+        return "yes"
+    if _NO.match(text):
+        return "no"
+    return None
+
 
 def handle(text: str, *,
            channel: str,
@@ -102,6 +140,15 @@ def handle(text: str, *,
     announce: 접수 사실을 기술 지원 방에 알리는 콜백. (제목, 링크)로 부른다.
         여기(CRM 조회 방)에서 낸 요청을 기술팀이 모르고 지나치면 안 된다.
     """
+    # 확인을 기다리는 중이면 짧은 대답을 먼저 본다. "네" 한 마디로 끝난다.
+    if store.waiting(channel, user_id):
+        answer = read_answer(text)
+        if answer == "yes":
+            return _confirm(channel, user_id, store, tickets, on_created, announce)
+        if answer == "no":
+            store.drop(channel, user_id)
+            return "요청을 취소했습니다."
+
     parsed = parse_command(text)
     if not parsed:
         return None

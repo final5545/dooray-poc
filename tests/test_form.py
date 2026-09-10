@@ -139,12 +139,12 @@ class TestPreview:
 
     def test_확인과_취소_방법을_알려준다(self):
         got = build_preview(parse_form(FILLED), "제목", None)
-        assert f"#{CONFIRM}" in got and f"#{CANCEL}" in got
+        assert "네" in got and "취소" in got
 
-    def test_눌러야_하는지_쳐야_하는지_분명히_한다(self):
-        # 버튼처럼 보이면 눌러 보게 된다. 여기는 글자다
+    def test_명령이_아니라_대답을_안내한다(self):
+        # 2026-09-10 회의: 자연어 + 1회 확인으로 단순화
         got = build_preview(parse_form(FILLED), "제목", None)
-        assert "입력해 주세요" in got
+        assert "답해 주시면" in got
 
     def test_버튼을_쓰는_방법도_알려준다(self):
         assert "/접수" in build_preview(parse_form(FILLED), "제목", None)

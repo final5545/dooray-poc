@@ -221,3 +221,54 @@ class TestLongCustomerName:
         # 담당자 정보를 버리면 안 된다 — 줄이는 것은 제목뿐이다
         self._run(store, tickets)
         assert "정상호 매니저" in tickets.created[0][1]
+
+
+class TestNaturalAnswer:
+    """확인을 기다리는 동안에는 짧은 대답을 그대로 알아듣는다.
+
+    2026-09-10 회의: "해시·슬래시 명령과 다단계 양식은 사용성이 떨어지므로
+    자연어 요청과 1회 확인 중심으로 단순화". #확인 을 외우게 하는 대신
+    사람이 실제로 쓰는 말을 받는다.
+    """
+
+    def _submit(self, store, tickets):
+        call(f"#기술정보\n{FILLED}", store, tickets)
+
+    def test_네_한_마디로_만들어진다(self, store, tickets):
+        self._submit(store, tickets)
+        got = call("네", store, tickets)
+        assert "접수되었습니다" in got and len(tickets.created) == 1
+
+    def test_여러_말투를_받는다(self, store, tickets):
+        for word in ("넵", "ㅇㅇ", "좋아요", "생성해줘", "ok", "진행해주세요"):
+            s2 = PendingStore()
+            t2 = FakeTicketRepository()
+            call(f"#기술정보\n{FILLED}", s2, t2)
+            call(word, s2, t2)
+            assert len(t2.created) == 1, f"'{word}' 를 못 알아들었다"
+
+    def test_아니라고_하면_버린다(self, store, tickets):
+        self._submit(store, tickets)
+        assert "취소" in call("아니요", store, tickets)
+        assert tickets.created == []
+
+    def test_대기가_없으면_평소_대화다(self, store, tickets):
+        # 아무 때나 "네"가 무언가를 만들면 안 된다
+        assert call("네", store, tickets) is None
+        assert call("취소", store, tickets) is None
+        assert tickets.created == []
+
+    def test_대기_중이어도_긴_문장은_대답이_아니다(self, store, tickets):
+        self._submit(store, tickets)
+        assert call("네 그런데 희망일을 바꿔야 할 것 같아요", store, tickets) is None
+        assert tickets.created == []
+
+    def test_만료된_대기는_대답을_받지_않는다(self, tickets):
+        s = PendingStore(ttl=0.0)
+        call(f"#기술정보\n{FILLED}", s, tickets)
+        assert call("네", s, tickets) is None
+        assert tickets.created == []
+
+    def test_기존_명령도_그대로_동작한다(self, store, tickets):
+        self._submit(store, tickets)
+        assert "접수되었습니다" in call("#확인", store, tickets)

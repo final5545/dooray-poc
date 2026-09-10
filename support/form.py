@@ -191,10 +191,11 @@ def build_preview(data: FormData, subject: str, customer_name: str | None) -> st
     ]
     lines = ["아래 내용으로 업무를 생성할까요?", ""]
     lines += [f"{label} : {value}" for label, value in rows if value]
-    # 버튼처럼 보이면 눌러 보게 된다. 쳐야 하는 말임을 문장으로 못박는다.
+    # 2026-09-10 회의: "자연어 요청과 1회 확인 중심으로 단순화".
+    # #확인 을 외우게 하는 대신 "네" 한 마디를 먼저 안내한다.
     lines += ["",
-              f"생성하려면 #{CONFIRM} 라고 입력해 주세요.",
-              f"취소하려면 #{CANCEL} 입니다. 버튼을 쓰려면 /접수 를 입력하세요."]
+              '"네" 라고 답해 주시면 만들겠습니다. 아니면 "취소".',
+              "버튼으로 하시려면 /접수 를 입력하세요."]
     return "\n".join(lines)
 
 
