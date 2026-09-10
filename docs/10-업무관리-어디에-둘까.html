@@ -1,0 +1,320 @@
+<title>업무관리 위치 검토</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@500;600&family=IBM+Plex+Sans+KR:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+:root{
+  --paper:#EEF1F5; --surface:#FFFFFF; --surface-2:#E4E9F0;
+  --ink:#151C28; --ink-soft:#596373; --ink-faint:#8A93A2;
+  --line:#D3DAE4; --line-soft:#E2E7EE;
+  --accent:#2B4CC4; --accent-soft:#E8ECFA;
+  --amber:#8F5F14; --amber-bg:#F7EEDC;
+  --green:#256040; --green-bg:#DFEEE5;
+  --red:#9B2C2C; --red-bg:#F7E4E4;
+  --shadow:0 1px 2px rgba(21,28,40,.05), 0 4px 14px rgba(21,28,40,.05);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0F141B; --surface:#171E27; --surface-2:#1F2833;
+    --ink:#E3E9F1; --ink-soft:#98A3B4; --ink-faint:#6B7688;
+    --line:#2B3541; --line-soft:#232C37;
+    --accent:#8AA2F8; --accent-soft:#1E2843;
+    --amber:#DCA75A; --amber-bg:#2E2618;
+    --green:#72C294; --green-bg:#162C21;
+    --red:#E08585; --red-bg:#2E1B1B;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0F141B; --surface:#171E27; --surface-2:#1F2833;
+  --ink:#E3E9F1; --ink-soft:#98A3B4; --ink-faint:#6B7688;
+  --line:#2B3541; --line-soft:#232C37;
+  --accent:#8AA2F8; --accent-soft:#1E2843;
+  --amber:#DCA75A; --amber-bg:#2E2618;
+  --green:#72C294; --green-bg:#162C21;
+  --red:#E08585; --red-bg:#2E1B1B;
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+}
+
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);
+  font-family:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  font-weight:300;line-height:1.72;font-size:15px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:860px;margin:0 auto;padding:56px 24px 96px;display:flex;flex-direction:column;gap:48px}
+
+.masthead{display:flex;flex-direction:column;gap:13px;padding-bottom:30px;border-bottom:2px solid var(--ink)}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink-faint);font-weight:500}
+h1{font-family:"Hahmlet",serif;font-weight:600;font-size:clamp(29px,5vw,40px);
+  line-height:1.2;letter-spacing:-.01em;margin:0;text-wrap:balance}
+.lede{font-size:16px;color:var(--ink-soft);max-width:62ch;margin:0}
+.meta{display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:4px;
+  font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-faint)}
+.meta b{font-weight:500;color:var(--ink-soft)}
+
+section{display:flex;flex-direction:column;gap:18px}
+h2{font-family:"Hahmlet",serif;font-weight:600;font-size:23px;line-height:1.3;
+  margin:0;display:flex;align-items:baseline;gap:11px;text-wrap:balance}
+h2 .num{font-family:"IBM Plex Mono",monospace;font-size:12.5px;font-weight:500;
+  color:var(--accent);letter-spacing:.05em;flex:none}
+h3{font-family:"IBM Plex Sans KR",sans-serif;font-weight:600;font-size:14px;margin:0}
+p{margin:0;max-width:66ch}
+.sub{color:var(--ink-soft)}
+strong{font-weight:600}
+code{font-family:"IBM Plex Mono",monospace;font-size:.88em;
+  background:var(--surface-2);padding:.1em .38em;border-radius:3px}
+
+figure{margin:0;display:flex;flex-direction:column;gap:12px;
+  background:var(--surface);border:1px solid var(--line);border-radius:8px;
+  padding:24px 22px 18px;box-shadow:var(--shadow)}
+figure svg{max-width:100%;height:auto;display:block;color:var(--ink)}
+figcaption{font-size:12.5px;color:var(--ink-soft);text-align:center;line-height:1.6}
+.dwrap{overflow-x:auto}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:540px}
+th,td{text-align:left;padding:9px 14px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+tr:last-child td{border-bottom:0}
+th{font-weight:600;font-size:11px;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-faint);font-family:"IBM Plex Mono",monospace;background:var(--surface-2);
+  border-bottom:1px solid var(--line)}
+td.mono{font-family:"IBM Plex Mono",monospace;font-size:12.5px}
+td.sub{color:var(--ink-soft)}
+td.yes{color:var(--green);font-weight:500}
+td.no{color:var(--red);font-weight:500}
+td.mid{color:var(--amber);font-weight:500}
+
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:6px;
+  padding:15px 16px;display:flex;flex-direction:column;gap:10px}
+.box.pick{border-left:3px solid var(--accent);background:var(--accent-soft)}
+.box h3{display:flex;align-items:baseline;gap:8px}
+.box h3 .tag{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-faint)}
+.box p{font-size:13.5px;color:var(--ink-soft)}
+.box ul{gap:6px}
+.box li{font-size:13px;color:var(--ink-soft)}
+
+.note{border-left:3px solid var(--amber);background:var(--amber-bg);
+  padding:12px 15px;border-radius:0 5px 5px 0;font-size:13.5px}
+.note.plain{border-left-color:var(--ink-faint);background:var(--surface-2)}
+.note.pick{border-left-color:var(--accent);background:var(--accent-soft)}
+.note b{font-weight:600}
+
+ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;max-width:66ch}
+li::marker{color:var(--ink-faint)}
+ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:9px;max-width:66ch}
+ol::marker{color:var(--ink-faint)}
+ol.ask li{padding-left:2px}
+ol.ask b{font-weight:600;color:var(--ink)}
+
+footer{border-top:1px solid var(--line);padding-top:24px;font-size:12.5px;
+  color:var(--ink-faint);display:flex;flex-direction:column;gap:5px}
+footer .mono{font-family:"IBM Plex Mono",monospace}
+
+@media print{
+  body{background:#fff}
+  .wrap{max-width:none;padding:0;gap:30px}
+  figure,.tablewrap,.box{break-inside:avoid;box-shadow:none}
+}
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">연합인포맥스 AI부 · 검토 · 2026.09.10</div>
+    <h1>업무관리 위치 검토</h1>
+    <p class="lede">기술지원 티켓을 Dooray 프로젝트에 둘 것인가, CRM 안에 둘 것인가. 시연 회의에서 "CRM에도 업무관리 기능이 있다"는 이야기가 나와 정리합니다.</p>
+    <div class="meta">
+      <span><b>결론</b> 아직 이르다 — 확인할 것이 다섯</span>
+      <span><b>단, 축은 분명하다</b></span>
+    </div>
+  </header>
+
+  <!-- ============ 먼저 정리 ============ -->
+  <section>
+    <h2>먼저 갈라 두어야 할 것</h2>
+    <p>"업무관리를 CRM에서 한다"는 말은 두 가지를 한꺼번에 뜻할 수 있습니다. <strong>이 둘을 나누지 않으면 논의가 겉돕니다.</strong></p>
+
+    <div class="cols">
+      <div class="box">
+        <h3>① 티켓이 어디 저장되나 <span class="tag">저장소</span></h3>
+        <p>업무 데이터의 원본이 Dooray 프로젝트에 있느냐, CRM 테이블에 있느냐.</p>
+        <p><strong>이건 바꾸기 쉽습니다.</strong> 아래 §2 참조.</p>
+      </div>
+      <div class="box">
+        <h3>② 담당자가 어디서 처리하나 <span class="tag">사용자 경험</span></h3>
+        <p>대화방에서 버튼으로 하느냐, CRM 화면을 열어서 하느냐.</p>
+        <p><strong>이건 이번 PoC의 핵심 가치입니다.</strong> 함부로 바꿀 일이 아닙니다.</p>
+      </div>
+    </div>
+
+    <div class="note plain">
+      <b>①과 ②는 함께 움직이지 않아도 됩니다.</b> 티켓을 CRM에 저장하면서 처리는 대화방에서 계속할 수 있습니다. 실제로 그게 가장 유력한 안입니다(§3의 C안).
+    </div>
+  </section>
+
+  <!-- ============ 갈아끼우기 비용 ============ -->
+  <section>
+    <h2><span class="num">02</span>저장소를 바꾸는 비용 — 생각보다 작다</h2>
+    <p>업무 저장소는 처음부터 인터페이스 뒤에 두었습니다. 코드가 두레이를 직접 부르는 지점은 <strong>메서드 9종, 실질 8곳</strong>뿐입니다.</p>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th class="mono">메서드</th><th>하는 일</th><th>CRM에 같은 것이 있나</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">create</td><td class="sub">티켓 등록</td><td class="sub">있을 것</td></tr>
+          <tr><td class="mono">get</td><td class="sub">단건 조회</td><td class="sub">있을 것</td></tr>
+          <tr><td class="mono">list_tasks</td><td class="sub">목록 (제목·상태 포함)</td><td class="sub">있을 것</td></tr>
+          <tr><td class="mono">set_workflow</td><td class="sub">상태 변경</td><td class="sub">있을 것</td></tr>
+          <tr><td class="mono">workflow_id</td><td class="sub">상태 이름 → 내부 ID</td><td class="sub">CRM 상태 체계에 맞춰 재작성</td></tr>
+          <tr><td class="mono">mark_notified</td><td class="sub">본문에 통보 표식</td><td class="sub"><strong>임의 텍스트를 쓸 자리가 필요</strong></td></tr>
+          <tr><td class="mono">list_states</td><td class="sub">완료 감지 폴링용</td><td class="sub">목록으로 대체 가능</td></tr>
+          <tr><td class="mono">task_url</td><td class="sub">화면 링크</td><td class="sub">CRM 화면 URL 규칙 필요</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note">
+      <b>한 가지가 걸립니다.</b> 지금은 <strong>원 요청의 대화방·메시지 좌표</strong>와 <strong>통보 표식</strong>을 업무 본문에 한 줄로 적어 둡니다. 두레이 업무에 임의 필드를 붙일 수 없어서 택한 방법인데, CRM에도 그런 자리(비고·메모 등 자유 텍스트)가 있어야 합니다. 없으면 별도 매핑 테이블이 필요합니다.
+    </div>
+
+    <p class="sub">덧붙여, 실 CRM API를 붙이며 확인한 것 — 고객정보 API는 <strong>기본정보·담당자·주소만</strong> 줍니다. 계약정보와 설치정보는 응답에 없습니다. 업무관리 API도 같은 식으로 일부만 열려 있을 수 있어, 필드 목록을 먼저 받아야 합니다.</p>
+  </section>
+
+  <!-- ============ 세 가지 안 ============ -->
+  <section>
+    <h2><span class="num">03</span>세 가지 안</h2>
+
+    <figure>
+      <div class="dwrap">
+        <svg viewBox="0 0 840 300" role="img"
+             aria-label="A안은 티켓이 두레이에만, B안은 CRM에만 있고 처리도 CRM 화면에서, C안은 티켓은 CRM에 두고 처리는 대화방 버튼으로 한다">
+          <defs>
+            <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5"
+                    markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <polygon points="0,0 10,5 0,10" fill="currentColor"/>
+            </marker>
+            <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5"
+                    markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <polygon points="0,0 10,5 0,10" fill="#2B4CC4"/>
+            </marker>
+          </defs>
+
+          <!-- A안 -->
+          <text x="20" y="26" font-size="12.5" font-weight="600" fill="currentColor">A · 지금 그대로</text>
+          <rect x="20" y="42" width="104" height="44" rx="5" fill="none" stroke="currentColor" stroke-width="1.3"/>
+          <text x="72" y="60" text-anchor="middle" font-size="11" fill="currentColor">대화방</text>
+          <text x="72" y="76" text-anchor="middle" font-size="10" fill="currentColor" opacity=".6">접수 · 처리</text>
+          <line x1="124" y1="64" x2="164" y2="64" stroke="currentColor" stroke-width="1.3" marker-end="url(#a1)"/>
+          <rect x="164" y="42" width="104" height="44" rx="5" fill="none" stroke="currentColor" stroke-width="1.3"/>
+          <text x="216" y="60" text-anchor="middle" font-size="11" fill="currentColor">Dooray</text>
+          <text x="216" y="76" text-anchor="middle" font-size="10" fill="currentColor" opacity=".6">프로젝트</text>
+          <text x="290" y="60" font-size="10.5" fill="currentColor" opacity=".55">CRM은 고객정보만</text>
+          <text x="290" y="78" font-size="10.5" fill="#9B2C2C" opacity=".8">지원 이력이 고객 옆에 안 남는다</text>
+
+          <line x1="20" y1="106" x2="820" y2="106" stroke="currentColor" stroke-width=".8" opacity=".2"/>
+
+          <!-- B안 -->
+          <text x="20" y="130" font-size="12.5" font-weight="600" fill="currentColor">B · CRM으로 완전 이전</text>
+          <rect x="20" y="146" width="104" height="44" rx="5" fill="none" stroke="currentColor" stroke-width="1.3"/>
+          <text x="72" y="164" text-anchor="middle" font-size="11" fill="currentColor">대화방</text>
+          <text x="72" y="180" text-anchor="middle" font-size="10" fill="currentColor" opacity=".6">접수만</text>
+          <line x1="124" y1="168" x2="164" y2="168" stroke="currentColor" stroke-width="1.3" marker-end="url(#a1)"/>
+          <rect x="164" y="146" width="104" height="44" rx="5" fill="none" stroke="currentColor" stroke-width="1.3"/>
+          <text x="216" y="164" text-anchor="middle" font-size="11" fill="currentColor">CRM</text>
+          <text x="216" y="180" text-anchor="middle" font-size="10" fill="currentColor" opacity=".6">업무 · 고객</text>
+          <path d="M216 190 V212 H124" fill="none" stroke="#9B2C2C" stroke-width="1.3"
+                stroke-dasharray="4 3" marker-end="url(#a1)"/>
+          <text x="290" y="164" font-size="10.5" fill="currentColor" opacity=".55">처리는 CRM 화면에서</text>
+          <text x="290" y="182" font-size="10.5" fill="#9B2C2C" opacity=".8">버튼 처리를 잃는다 — PoC의 핵심</text>
+
+          <line x1="20" y1="232" x2="820" y2="232" stroke="currentColor" stroke-width=".8" opacity=".2"/>
+
+          <!-- C안 -->
+          <text x="20" y="256" font-size="12.5" font-weight="600" fill="#2B4CC4">C · CRM이 원본, 대화방이 창구</text>
+          <rect x="20" y="266" width="104" height="30" rx="5" fill="none" stroke="#2B4CC4" stroke-width="1.6"/>
+          <text x="72" y="286" text-anchor="middle" font-size="11" fill="#2B4CC4">대화방</text>
+          <path d="M124 275 H164" fill="none" stroke="#2B4CC4" stroke-width="1.6" marker-end="url(#a2)"/>
+          <path d="M164 288 H124" fill="none" stroke="#2B4CC4" stroke-width="1.6" marker-end="url(#a2)"/>
+          <rect x="164" y="266" width="104" height="30" rx="5" fill="none" stroke="#2B4CC4" stroke-width="1.6"/>
+          <text x="216" y="286" text-anchor="middle" font-size="11" fill="#2B4CC4">CRM</text>
+          <text x="290" y="278" font-size="10.5" fill="#2B4CC4" opacity=".9">접수 · 처리는 대화방, 저장은 CRM</text>
+          <text x="290" y="294" font-size="10.5" fill="#256040">지원 이력이 고객 옆에 남는다</text>
+        </svg>
+      </div>
+      <figcaption>세 안의 차이는 <strong>티켓이 어디 저장되나</strong>와 <strong>담당자가 어디서 누르나</strong>의 조합이다. C안은 둘을 갈라 각자의 강점을 취한다.</figcaption>
+    </figure>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th></th><th>A · 지금</th><th>B · 완전 이전</th><th>C · CRM 원본 + 대화방 창구</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="sub">지원 이력이 고객 옆에</td>
+            <td class="no">안 남는다</td><td class="yes">남는다</td><td class="yes">남는다</td>
+          </tr>
+          <tr>
+            <td class="sub">대화방 버튼 처리</td>
+            <td class="yes">된다</td><td class="no">잃는다</td><td class="yes">된다</td>
+          </tr>
+          <tr>
+            <td class="sub">두 시스템 이중 입력</td>
+            <td class="mid">있다</td><td class="yes">없다</td><td class="yes">없다</td>
+          </tr>
+          <tr>
+            <td class="sub">개발 비용</td>
+            <td class="yes">0</td><td class="mid">중</td><td class="mid">중</td>
+          </tr>
+          <tr>
+            <td class="sub">CRM API 의존</td>
+            <td class="yes">없음</td><td class="no">전면</td><td class="no">전면</td>
+          </tr>
+          <tr>
+            <td class="sub">담당자 학습 비용</td>
+            <td class="yes">없음</td><td class="mid">CRM 화면 익혀야</td><td class="yes">없음</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note pick">
+      <b>C안이 유력해 보입니다.</b> 지원 이력이 고객 데이터 옆에 쌓이면서도, 담당자는 지금처럼 대화방에서 버튼만 누르면 됩니다. <strong>다만 CRM 업무관리 API가 우리가 쓰는 여덟 가지 동작을 지원해야 성립합니다</strong> — 그게 아래 확인 항목입니다.
+    </div>
+  </section>
+
+  <!-- ============ 확인할 것 ============ -->
+  <section>
+    <h2><span class="num">04</span>CRM 담당자께 확인할 것</h2>
+    <p class="sub">아래가 답해지기 전에는 어느 안이 맞는지 정할 수 없습니다. 고객정보 API가 계약·설치정보를 주지 않았던 것처럼, 업무관리도 일부만 열려 있을 수 있습니다.</p>
+
+    <ol class="ask">
+      <li><b>업무 등록·조회·상태 변경 API가 있습니까?</b> 화면 기능만 있고 API가 없다면 C안은 성립하지 않습니다. 고객정보처럼 <code>POST</code> 한 벌이면 충분합니다.</li>
+      <li><b>업무에 자유 텍스트를 적을 자리가 있습니까?</b> 원 요청의 대화방·메시지 좌표를 어딘가 남겨야 완료 통보가 요청 자리로 돌아갑니다. 비고·메모 필드면 됩니다.</li>
+      <li><b>상태 체계가 어떻게 됩니까?</b> 지금은 접수 → 진행 중 → 완료 셋입니다. CRM이 더 잘게 나눠 있다면 어느 것에 대응시킬지 정해야 합니다.</li>
+      <li><b>업무 화면에 직접 링크할 수 있습니까?</b> 접수 회신에 링크를 붙여 담당자가 바로 열 수 있게 하고 있습니다.</li>
+      <li><b>기존 지원 이력이 이미 CRM에 쌓여 있습니까?</b> 있다면 두레이에 만든 것과 합칠지, 시점을 끊을지 정해야 합니다.</li>
+    </ol>
+
+    <div class="note plain">
+      <b>덧붙여 보고할 것 하나.</b> 고객정보 API에 빈 조회(<code>{"info": []}</code>)를 보내면 <code>responseCode: -1</code> 인데도 <strong>전체 고객 목록이 돌아옵니다</strong>(2026-09-10 실측, 28건). 우리 쪽에서는 빈 요청을 보내지 않도록 막았지만, API 자체에서도 막는 편이 안전합니다.
+    </div>
+  </section>
+
+  <!-- ============ 권고 ============ -->
+  <section>
+    <h2>권고</h2>
+    <ul>
+      <li><strong>지금은 A안(현행)으로 둡니다.</strong> 시연이 끝났고 실 CRM 고객정보까지 붙었습니다. 여기서 저장소를 흔들 이유가 없습니다.</li>
+      <li><strong>확인 항목의 답을 받은 뒤 C안을 검토합니다.</strong> 답이 모두 "된다"면 옮길 값어치가 있습니다 — 지원 이력이 고객 옆에 쌓이는 것은 실질적인 이득입니다.</li>
+      <li><strong>B안은 권하지 않습니다.</strong> 대화방 버튼 처리는 이번 PoC에서 가장 어렵게 얻은 것이고(라이선스 없이 되는지 확인하는 데만 한나절), 담당자가 화면을 하나 더 열어야 한다면 자동화의 이유가 절반 사라집니다.</li>
+      <li>어느 쪽이든 <strong>저장소 교체 자체는 큰 일이 아닙니다.</strong> 인터페이스 뒤에 있어 구현체 하나를 갈아끼우면 됩니다. 진짜 비용은 CRM API의 제약을 알아내고 맞추는 데 듭니다.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <div>연합인포맥스 AI부 · Dooray 기술지원 자동화 PoC</div>
+    <div class="mono">github.com/final5545/dooray-poc · 현행 구조는 docs/09-시연-흐름.html</div>
+  </footer>
+
+</div>
