@@ -311,3 +311,20 @@ class TestShortenCustomer:
         assert shorten_customer(None) is None
         assert shorten_customer("") is None
         assert shorten_customer("   ") is None
+
+
+class TestPreviewGuide:
+    """/접수 응답에는 버튼이 붙으므로 텍스트 안내를 빼야 한다.
+
+    버튼을 보면서 "버튼으로 하시려면 /접수" 를 읽게 하면 안 된다
+    (2026-09-10 배포 확인 중 발견).
+    """
+
+    def test_기본은_안내를_붙인다(self):
+        got = build_preview(parse_form(FILLED), "제목", None)
+        assert "네" in got and "/접수" in got
+
+    def test_끄면_내용만_남는다(self):
+        got = build_preview(parse_form(FILLED), "제목", None, guide=False)
+        assert "/접수" not in got and "답해 주시면" not in got
+        assert "제목" in got and "E230096" in got      # 내용은 그대로

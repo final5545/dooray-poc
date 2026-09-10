@@ -153,8 +153,9 @@ def handle_intake(payload: dict) -> dict:
                 "text": "최근 올린 요청서를 찾지 못했습니다.\n"
                         "양식을 먼저 붙여넣은 뒤 /접수 를 입력해 주세요."}
 
+    # 응답에 [생성][취소] 버튼이 붙으므로 텍스트 안내는 뺀다
     item, message = prepare(form_text, channel=channel, user_id=user,
-                            tickets=repo, customers=CRM)
+                            tickets=repo, customers=CRM, guide=False)
     if item is None:
         return {"responseType": "ephemeral", "text": message}
 

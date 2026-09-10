@@ -177,7 +177,8 @@ def handle(text: str, *,
 
 def prepare(form_text: str, *, channel: str, user_id: str,
             tickets=None, customers=None, origin_message=None,
-            today: _dt.date | None = None) -> tuple[Pending | None, str]:
+            today: _dt.date | None = None,
+            guide: bool = True) -> tuple[Pending | None, str]:
     """채운 양식 → (대기 항목, 안내문). 만들지는 않는다.
 
     대기 항목이 None이면 안내문이 곧 오류 사유다. 텍스트 확인(#확인)과 버튼
@@ -221,7 +222,7 @@ def prepare(form_text: str, *, channel: str, user_id: str,
 
     item = Pending(data=data, subject=subject, body=body, at=time.time(),
                    customer_name=customer_name)
-    return item, build_preview(data, subject, customer_name)
+    return item, build_preview(data, subject, customer_name, guide=guide)
 
 
 def handle_natural(text: str, *, channel: str, user_id: str, store: PendingStore,

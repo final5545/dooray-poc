@@ -176,10 +176,14 @@ def to_request(data: FormData, today: _dt.date | None = None) -> SupportRequest:
     )
 
 
-def build_preview(data: FormData, subject: str, customer_name: str | None) -> str:
+def build_preview(data: FormData, subject: str, customer_name: str | None,
+                  guide: bool = True) -> str:
     """생성 직전 확인 화면.
 
     파싱이 어긋났으면 여기서 잡으라고 **우리가 읽은 대로** 보여준다.
+
+    guide: 확인 방법 안내를 붙일지. /접수 응답처럼 화면에 이미 버튼이 있으면
+        끈다 — 버튼을 보면서 "버튼으로 하시려면 /접수" 를 읽게 하면 안 된다.
     """
     rows = [
         ("제목", subject),
@@ -193,9 +197,10 @@ def build_preview(data: FormData, subject: str, customer_name: str | None) -> st
     lines += [f"{label} : {value}" for label, value in rows if value]
     # 2026-09-10 회의: "자연어 요청과 1회 확인 중심으로 단순화".
     # #확인 을 외우게 하는 대신 "네" 한 마디를 먼저 안내한다.
-    lines += ["",
-              '"네" 라고 답해 주시면 만들겠습니다. 아니면 "취소".',
-              "버튼으로 하시려면 /접수 를 입력하세요."]
+    if guide:
+        lines += ["",
+                  '"네" 라고 답해 주시면 만들겠습니다. 아니면 "취소".',
+                  "버튼으로 하시려면 /접수 를 입력하세요."]
     return "\n".join(lines)
 
 
