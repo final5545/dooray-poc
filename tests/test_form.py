@@ -188,13 +188,50 @@ class TestPickForm:
         assert pick_form([self._msg("점심 뭐 먹지"),
                           self._msg("E230096 조회해줘")], "u1") is None
 
-    def test_제목을_지운_양식도_라벨로_알아본다(self):
-        body = "고객번호 : E230096\n연락처 : 02-1234-5678"
+    def test_제목을_지운_양식도_섹션으로_알아본다(self):
+        body = "[기본정보]\n고객번호 : E230096\n[요청정보]\n연락처 : 02-1234-5678"
         assert pick_form([self._msg(body)], "u1") is not None
 
-    def test_라벨_하나만으로는_양식이_아니다(self):
+    def test_라벨만으로는_양식이_아니다(self):
         # '고객번호 : E230096' 한 줄짜리 조회 요청을 양식으로 오인하면 안 된다
         assert not looks_like_form("고객번호 : E230096")
+
+
+class TestNotForm:
+    """우리가 낸 응답을 양식으로 되읽으면 안 된다.
+
+    2026-09-10 발견: '라벨 두 개 이상'이면 양식으로 보던 규칙이 헐거워
+    고객 카드와 봇 확인 화면까지 양식으로 읽혔다. 조회를 한 뒤 /접수 를
+    누르면 **고객 카드를 양식으로 읽어** 요청 유형이 없는 업무가 만들어질
+    뻔했다. 확인 단계가 있어 실제 사고는 나지 않았다.
+    """
+
+    def test_고객_카드는_양식이_아니다(self):
+        card = ("[기본정보]\n고객번호 : E120452\n고객구분 : 무료\n"
+                "고객명 : 연합인포맥스\n\n[사용자정보]\n부서 : 경영지원본부\n"
+                "이름 : 박청호\n전화1 : 02-398-5222")
+        assert not looks_like_form(card)
+
+    def test_봇_확인_화면은_양식이_아니다(self):
+        preview = ("아래 내용으로 업무를 생성할까요?\n\n"
+                   "제목 : 연합인포맥스 장비/설비 이전 [접수]\n"
+                   "고객번호 : E120452\n고객명 : 연합인포맥스\n"
+                   "희망일시 : 9월 30일\n연락처 : 02-398-5222")
+        assert not looks_like_form(preview)
+
+    def test_접수_회신은_양식이_아니다(self):
+        receipt = ("기술지원 요청이 접수되었습니다.\n"
+                   "연합인포맥스 장비/설비 이전 [접수]\n고객번호 : E120452")
+        assert not looks_like_form(receipt)
+
+    def test_조회_뒤_접수하면_직전_양식을_고른다(self):
+        # 실제 대화 순서: 양식 제출 → 고객 카드 조회 → /접수
+        def msg(t):
+            return {"text": t, "sender": {"member": {"organizationMemberId": "u1"}}}
+        card = "[기본정보]\n고객번호 : E120452\n고객명 : 연합인포맥스"
+        logs = [msg(card), msg(FILLED)]        # 최신이 앞
+        got = pick_form(logs, "u1")
+        assert got is not None and "이전요청서" in got
 
     def test_빈_입력(self):
         assert pick_form([], "u1") is None

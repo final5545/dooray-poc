@@ -205,18 +205,27 @@ def build_preview(data: FormData, subject: str, customer_name: str | None) -> st
 # 올리고, 커맨드는 **그 메시지를 찾아 읽는다**. 버튼이 동작하는 곳은 커맨드
 # 응답뿐이므로(support/command.py) 확인 버튼을 쓰려면 이 우회가 필요하다.
 
+# 양식에만 있는 섹션 머리. 고객 카드에도 [기본정보]는 있지만 [요청정보]는 없다.
+_SECTION_MARK = "[요청정보]"
+
+
 def looks_like_form(text: str) -> bool:
     """양식으로 볼 만한 메시지인가.
 
-    제목 줄이 있거나 우리 항목 라벨이 두 개 이상 보이면 양식으로 본다.
-    사람이 제목 줄을 지우고 붙여넣는 경우가 있어 제목만으로 판정하지 않는다.
+    ⚠️ 판정을 **적극적으로** 한다 — 제목 줄이 있거나 [요청정보] 섹션이 있어야
+       양식이다.
+
+       처음에는 "우리 항목 라벨이 두 개 이상"이면 양식으로 봤는데, 그 규칙이
+       너무 헐거웠다(2026-09-10 발견). 고객 카드에도 '고객번호'와 '고객명'이
+       있고, 봇이 낸 확인 화면에도 있다. 그래서 조회를 한 뒤 /접수 를 누르면
+       **고객 카드를 양식으로 읽어** 요청 유형이 없는 업무가 만들어질 뻔했다.
+
+       제목을 지우고 붙여넣는 경우를 위해 섹션 머리를 함께 본다. 제목과 섹션
+       머리를 둘 다 지웠다면 #기술정보 로 명시하면 된다.
     """
     if not text:
         return False
-    if _type_from_title(text):
-        return True
-    hits = sum(1 for label in _LABELS if f"{label} " in text or f"{label}:" in text)
-    return hits >= 2
+    return bool(_type_from_title(text)) or _SECTION_MARK in text
 
 
 def pick_form(messages: list[dict], user_id: str | None = None) -> str | None:
