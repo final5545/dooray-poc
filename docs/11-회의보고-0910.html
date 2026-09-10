@@ -85,6 +85,12 @@ td.yes{color:var(--green);font-weight:500;white-space:nowrap}
 td.no{color:var(--red);font-weight:500;white-space:nowrap}
 td.mid{color:var(--amber);font-weight:500;white-space:nowrap}
 
+figure{margin:0;display:flex;flex-direction:column;gap:10px}
+figure img{max-width:100%;height:auto;display:block;border:1px solid var(--line);
+  border-radius:6px;box-shadow:var(--shadow);background:var(--surface)}
+figcaption{font-size:12.5px;color:var(--ink-soft);line-height:1.6}
+figcaption b{color:var(--ink);font-weight:600}
+
 .chat{background:var(--surface);border:1px solid var(--line);border-radius:8px;
   box-shadow:var(--shadow);overflow:hidden}
 .chat-head{display:flex;align-items:center;gap:8px;padding:9px 14px;
@@ -215,34 +221,11 @@ footer .mono{font-family:"IBM Plex Mono",monospace}
       </table>
     </div>
 
-    <div class="chat">
-      <div class="chat-head"><span class="room">CRM 조회</span><span class="hint">2026-09-10 실측</span></div>
-      <div class="chat-body">
-        <div class="msg out">
-          <span class="who">정원석</span>
-          <div class="bubble">E120452 단말 바꿔야 할 것 같아요. 다음주 화요일 오후에 부탁드려요</div>
-        </div>
-        <div class="msg">
-          <span class="who">기술지원 도우미</span>
-          <div class="bubble">아래 내용으로 업무를 생성할까요?
-
-제목 : 연합인포맥스 노후교체 [접수]
-고객번호 : E120452
-고객명 : 연합인포맥스
-희망일시 : 다음주 화요일 오후
-메모 : 단말 교체 필요
-
-"네" 라고 답해 주시면 만들겠습니다. 아니면 "취소".</div>
-        </div>
-        <div class="msg out"><span class="who">정원석</span><div class="bubble">네</div></div>
-        <div class="msg">
-          <span class="who">기술지원 도우미</span>
-          <div class="bubble">기술지원 요청이 접수되었습니다.
-연합인포맥스 노후교체 [접수]
-고객번호 : E120452</div>
-        </div>
-      </div>
-    </div>
+    <figure>
+      <img src="screenshots/3-요청부터등록까지.png"
+           alt="요청 한 줄과 네 한 마디로 업무가 등록되는 대화 화면">
+      <figcaption><b>실제 화면 · 2026-09-10.</b> 사내 CRM 실 데이터(E120452 연합인포맥스). 요청 한 줄 → 확인 → "네" → 등록.</figcaption>
+    </figure>
 
     <ul>
       <li>"바꿔야" 를 <strong>노후교체</strong>로, "다음주 화요일 오후" 를 <strong>희망일시</strong>로 읽었습니다. 요청 유형 11종을 분류합니다.</li>
@@ -263,6 +246,12 @@ footer .mono{font-family:"IBM Plex Mono",monospace}
     </div>
 
     <p>고객정보 조회 API를 받아 연결했습니다. 응답 <strong>40ms</strong>로 실사용에 문제가 없습니다.</p>
+
+    <figure>
+      <img src="screenshots/1-고객정보조회.png"
+           alt="고객번호로 조회한 고객 카드. 기본정보·사용자정보·주소·비고가 나온다">
+      <figcaption>고객번호를 섞어 쓰면 카드가 옵니다. <b>계약정보·설치정보 섹션이 보이지 않는 것</b>이 아래 제약입니다.</figcaption>
+    </figure>
 
     <h3>확인된 제약 — 필드 절반이 없습니다</h3>
     <p>기획서 §4가 요구한 항목 중 <strong>계약정보 전부와 설치정보 대부분, 이메일이 응답에 없습니다.</strong></p>
@@ -302,6 +291,39 @@ footer .mono{font-family:"IBM Plex Mono",monospace}
 
     <h3>망 접근</h3>
     <p>사무망(개발 PC)에서는 닿습니다. <strong>서버망(ai-node)에서는 닿지 않습니다.</strong> 현재는 조회·요청 기능이 개발 PC에서 돌고 있어 동작에 지장이 없지만, <strong>운영 전환 시에는 방화벽 허용이 필요합니다.</strong></p>
+  </section>
+
+  <section>
+    <h2>시연 화면 — 처리와 통보</h2>
+    <p>요청이 등록된 뒤의 흐름입니다. 담당자는 대화방을 벗어나지 않습니다.</p>
+
+    <figure>
+      <img src="screenshots/4-기술팀알림과처리목록.png"
+           alt="기술 지원 현황판에 새 요청 알림이 오고, 슬래시 처리 명령으로 수락·완료 버튼이 나온다">
+      <figcaption><b>다른 방에서 낸 요청이 기술팀에 전달됩니다.</b> <code>/처리</code> 를 치면 미완료 건이 버튼과 함께 나옵니다 — 누른 사람에게만 보입니다.</figcaption>
+    </figure>
+
+    <figure>
+      <img src="screenshots/5-수락과되돌리기.png"
+           alt="수락 클릭 후 목록이 남은 채 상태가 진행 중으로 바뀌고 되돌리기 버튼이 붙는다">
+      <figcaption><b>목록이 남은 채 그 항목만 갱신됩니다.</b> 연달아 처리할 수 있고, 잘못 눌렀으면 되돌립니다.</figcaption>
+    </figure>
+
+    <figure>
+      <img src="screenshots/6-완료와봇공지.png"
+           alt="처리자에게만 보이는 결과와 방 전체에 나가는 봇 공지가 나란히 있다">
+      <figcaption><b>처리 결과는 누른 사람에게만, 완료 공지만 방 전체에.</b> 공지는 앱 이름으로 나가 자동화가 한 일임이 드러납니다.</figcaption>
+    </figure>
+
+    <figure>
+      <img src="screenshots/7-요청자개인알림.png"
+           alt="Dooray News에 완료 알림이 도착한 화면">
+      <figcaption>요청자가 <b>평소 알림을 보는 곳</b>까지 닿습니다. 버튼으로 완료하면 즉시입니다.</figcaption>
+    </figure>
+
+    <div class="note plain">
+      <b>화면에 없는 것.</b> Dooray 웹에서 직접 완료한 경우는 원 요청에 인용 답장이 달리며 최대 5분 걸립니다 — Dooray가 상태 변경에 알림을 주지 않아 주기적으로 확인합니다. 양식 경로(<code>#이전</code> → <code>#기술정보</code>)는 자연어로 대체되어 뺐지만, 전화로 받아 적을 때는 여전히 유용합니다.
+    </div>
   </section>
 
   <!-- ============ 아직 안 된 것 ============ -->
@@ -362,25 +384,6 @@ footer .mono{font-family:"IBM Plex Mono",monospace}
 
     <div class="note pick">
       <b>다음 단계 제안.</b> CRM 업무 API 스펙을 받는 것이 가장 앞섭니다 — 그것이 정해져야 원장 구조도, 상태 동기화도, 2차 시나리오도 설계할 수 있습니다. 그동안 저희는 보안 항목(승인 사용자·감사로그)을 먼저 채우겠습니다. 실데이터가 연결된 이상 그쪽이 먼저입니다.
-    </div>
-  </section>
-
-  <section>
-    <h2>시연 화면</h2>
-    <p>실제 대화방에서 한 바퀴 돌리며 뽑았습니다. <code>docs/screenshots/</code> 에 일곱 장이 있습니다.</p>
-    <div class="tablewrap">
-      <table>
-        <thead><tr><th class="mono">파일</th><th>무엇을 보여주나</th></tr></thead>
-        <tbody>
-          <tr><td class="mono">1-고객정보조회</td><td class="sub">고객번호를 섞어 쓰면 카드가 온다 (사내 CRM 실 데이터)</td></tr>
-          <tr><td class="mono">2-자연어요청</td><td class="sub">말하듯 쓰면 유형·희망일시·연락처를 읽어 양식을 채운다</td></tr>
-          <tr><td class="mono">3-요청부터등록까지</td><td class="sub"><strong>입력 2회로 끝난다</strong> — 회의 지적에 대한 답</td></tr>
-          <tr><td class="mono">4-기술팀알림과처리목록</td><td class="sub">다른 방의 요청이 기술팀에 전달되고 버튼이 나온다</td></tr>
-          <tr><td class="mono">5-수락과되돌리기</td><td class="sub">목록이 남은 채 갱신. 잘못 눌렀으면 되돌린다</td></tr>
-          <tr><td class="mono">6-완료와봇공지</td><td class="sub">처리자에게만 보이는 결과 + 방 전체 봇 공지</td></tr>
-          <tr><td class="mono">7-요청자개인알림</td><td class="sub">Dooray! News 까지 닿는다</td></tr>
-        </tbody>
-      </table>
     </div>
   </section>
 
