@@ -176,8 +176,8 @@ footer .mono{font-family:"IBM Plex Mono",monospace}
           </tr>
           <tr>
             <td><strong>보안 · 제어계층</strong></td>
-            <td class="no">미착수</td>
-            <td class="sub">사용자 화이트리스트 · 최소 필드 · 호출제한 · 감사로그 모두 없음</td>
+            <td class="mid">진행</td>
+            <td class="sub">승인 사용자·감사로그 <strong>오늘 구현</strong>. 최소 필드·호출제한은 정책 결정 필요</td>
           </tr>
         </tbody>
       </table>
@@ -333,23 +333,27 @@ footer .mono{font-family:"IBM Plex Mono",monospace}
       지난 회의 — <b>"승인 사용자·전용 채널 화이트리스트, 최소 필드 전송, 호출속도 제한, 감사로그와 별도 제어계층을 기본조건으로 검토"</b>
     </div>
 
-    <p>기본조건으로 제시된 다섯 중 <strong>채널 화이트리스트만</strong> 되어 있습니다.</p>
+    <p>기본조건 다섯 중 <strong>셋을 갖췄습니다.</strong> 실 CRM이 붙은 이상 "PoC라서"로 미룰 수 없다고 보아 오늘 두 가지를 더했습니다.</p>
 
     <div class="tablewrap">
       <table>
         <thead><tr><th>항목</th><th>상태</th><th></th></tr></thead>
         <tbody>
           <tr><td>전용 채널 화이트리스트</td><td class="yes">있음</td><td class="sub">지정한 대화방 외에는 본문을 로그에도 남기지 않음</td></tr>
-          <tr><td>승인 사용자 화이트리스트</td><td class="no">없음</td><td class="sub">채널에 들어온 사람이면 누구나 사용 가능</td></tr>
-          <tr><td>최소 필드 전송</td><td class="no">없음</td><td class="sub">마스킹 스위치는 있으나 기본 꺼짐 (PoC 결정)</td></tr>
+          <tr><td>승인 사용자 화이트리스트</td><td class="yes">있음</td><td class="sub"><strong>2026-09-10 구현.</strong> 명단에 없으면 안내만 돌려주고 아무것도 하지 않는다</td></tr>
+          <tr><td>최소 필드 전송</td><td class="mid">스위치만</td><td class="sub">마스킹 기능은 있으나 기본 꺼짐 — <strong>무엇을 가릴지 정책이 필요</strong></td></tr>
           <tr><td>호출속도 제한</td><td class="no">없음</td><td class="sub">CRM·LLM 호출에 제한 없음</td></tr>
-          <tr><td>감사로그</td><td class="no">없음</td><td class="sub">일반 운영 로그만. 누가 무엇을 조회했는지 별도 기록 없음</td></tr>
+          <tr><td>감사로그</td><td class="yes">있음</td><td class="sub"><strong>2026-09-10 구현.</strong> 조회·생성·상태변경·거부를 별도 파일에 기록</td></tr>
         </tbody>
       </table>
     </div>
 
+    <div class="note plain">
+      <b>감사로그는 무엇을 조회했는지만 남기고 결과는 남기지 않습니다.</b> 고객번호와 시각·사용자는 기록하되 이름·연락처·주소는 기록하지 않습니다 — 로그 파일이 새로운 유출 경로가 되면 안 되기 때문입니다.
+    </div>
+
     <div class="note">
-      <b>PoC 단계의 의도된 상태입니다.</b> 다만 <strong>실 고객 데이터가 연결된 지금부터는 성격이 달라집니다.</strong> 시연·검증 범위를 넘어 실사용을 시작하기 전에 위 항목들을 갖춰야 합니다. 특히 승인 사용자 제한과 감사로그는 실데이터를 다루는 이상 우선순위가 높습니다.
+      <b>남은 둘은 정책 결정이 필요합니다.</b> 최소 필드 전송은 <strong>무엇을 가릴지</strong>(연락처만? 주소도?), 호출속도 제한은 <strong>어느 선을 넘으면 이상으로 볼지</strong>를 정해야 만들 수 있습니다. 기능 자체는 어렵지 않습니다.
     </div>
 
     <h3>그 밖에</h3>

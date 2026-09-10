@@ -39,7 +39,12 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _ROOT)
 load_dotenv(os.path.join(_ROOT, ".env"))
 from crm.factory import build_repository                 # noqa: E402
+from crm.parser import parse_all_customer_codes          # noqa: E402
 from crm.service import handle_message as crm_handle     # noqa: E402
+from support.audit import (                              # noqa: E402
+    CREATE, DENIED, DENIED_MESSAGE, LOOKUP,
+    AuditLog, Guard, parse_allowed,
+)
 from support.channels import channel_for_member, direct_channels  # noqa: E402
 from routing import RouteConfigError, parse_routes       # noqa: E402
 from support.completion import handle_news, news_card    # noqa: E402
@@ -104,6 +109,12 @@ if "support" in ROUTES.values():
         raise SystemExit("support 라우트가 있으면 DOORAY_SUPPORT_PROJECT가 필요합니다.")
     TICKET_REPO = DoorayTicketRepository(TOKEN, SUPPORT_PROJECT, domain=DOMAIN)
     WATCHER = CompletionWatcher(TICKET_REPO, StateStore(STATE_PATH))
+
+# 승인 사용자와 감사로그 (2026-09-10 회의 기본조건).
+#   DOORAY_ALLOWED_USERS 가 비면 제한하지 않는다 — 설정을 빠뜨렸다고
+#   서비스를 조용히 죽이지 않는다. 대신 기동 배너에 상태를 찍는다.
+GUARD = Guard(parse_allowed(os.getenv("DOORAY_ALLOWED_USERS")))
+AUDIT = AuditLog(os.getenv("DOORAY_AUDIT_LOG"))
 
 # 요청서 양식 접수 — 확인(#확인)을 기다리는 동안만 들고 있는다.
 INTAKE = PendingStore()
@@ -226,6 +237,15 @@ def handle(client: DoorayClient, channel: str, text: str, sender: str,
         client.send_message(channel, "pong")
         return
 
+    # 승인되지 않은 사용자는 여기서 멈춘다. 채널 화이트리스트만으로는
+    # "그 방에 들어온 사람이면 누구나"가 되는데, 실 고객정보를 다루는
+    # 이상 그것으로는 부족하다.
+    if not GUARD.permits(sender):
+        AUDIT.write(DENIED, user=sender, channel=channel, route=route)
+        log.warning("승인되지 않은 사용자 — 거부 (member=%s)", sender)
+        client.send_message(channel, DENIED_MESSAGE)
+        return
+
     # 각 핸들러는 처리 대상이 아니면 None을 돌려준다 → 아무것도 보내지 않는다
     if route == "crm":
         # '#' 명령(요청서 양식)이 먼저다. 우리 명령이 아니면 None이 와서
@@ -234,7 +254,7 @@ def handle(client: DoorayClient, channel: str, text: str, sender: str,
             text, channel=channel, user_id=sender, store=INTAKE,
             tickets=TICKET_REPO, customers=CRM_REPO, llm=LLM,
             origin_message=content.get("id"),
-            on_created=WATCHER.track if WATCHER else None,
+            on_created=_on_created(sender, channel),
             announce=_announce_to_support(client, channel),
         )
         if reply is None:
@@ -245,6 +265,11 @@ def handle(client: DoorayClient, channel: str, text: str, sender: str,
                 origin_message=content.get("id"),
             )
         if reply is None:
+            # 무엇을 찾았는지만 남긴다. 무엇이 나왔는지(이름·연락처)는 남기지
+            # 않는다 — 로그 파일이 새로운 유출 경로가 되면 안 된다.
+            codes = parse_all_customer_codes(text)
+            if codes:
+                AUDIT.write(LOOKUP, user=sender, channel=channel, codes=codes)
             reply = crm_handle(text, CRM_REPO)
     elif route == "support":
         # requester_id는 참조자 지정용이 아니다(cc_requester 기본 False).
@@ -255,7 +280,7 @@ def handle(client: DoorayClient, channel: str, text: str, sender: str,
                                requester_id=sender,
                                origin_channel=channel,
                                origin_message=content.get("id"),
-                               on_created=WATCHER.track if WATCHER else None)
+                               on_created=_on_created(sender, channel))
     else:
         return
 
@@ -277,6 +302,15 @@ def _poll_completions(client: DoorayClient) -> None:
             continue
         for reply in result.replies:
             _notify_completion(client, reply)
+
+
+def _on_created(user: str | None, channel: str):
+    """티켓 생성 직후 — 완료 감지 등록과 감사 기록을 함께 한다."""
+    def hook(post_id: str) -> None:
+        AUDIT.write(CREATE, user=user, channel=channel, task=post_id)
+        if WATCHER:
+            WATCHER.track(post_id)
+    return hook
 
 
 def _announce_to_support(client: DoorayClient, from_channel: str):
@@ -468,6 +502,8 @@ def main() -> None:
         log.info("route %s → %s", ch, r)
     log.info("LLM 보강: %s", LLM_LABEL)
     log.info("CRM: %s", CRM_LABEL)
+    log.info("승인 사용자: %s", GUARD.label)
+    log.info("감사로그: %s", AUDIT.label)
 
     client = DoorayClient(TOKEN)
     if WATCHER is not None:

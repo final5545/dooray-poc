@@ -35,6 +35,10 @@ from support.command import (           # noqa: E402
     build_ticket_list,
     parse_action,
 )
+from support.audit import (             # noqa: E402
+    CREATE, DENIED, DENIED_MESSAGE, WORKFLOW,
+    AuditLog, Guard, parse_allowed,
+)
 from support.channels import (          # noqa: E402
     channel_for_member,
     direct_channels,
@@ -100,6 +104,10 @@ class Messenger:
 
 
 messenger = Messenger(TOKEN) if TOKEN else None
+
+# 승인 사용자와 감사로그 (2026-09-10 회의 기본조건).
+GUARD = Guard(parse_allowed(os.getenv("DOORAY_ALLOWED_USERS")))
+AUDIT = AuditLog(os.getenv("DOORAY_AUDIT_LOG"))
 
 # 요청서 접수 확인 — 버튼을 누를 때까지만 들고 있는다.
 # 이 서비스는 replicas 1이라 프로세스 메모리로 충분하다.
@@ -185,6 +193,9 @@ def handle_interactive(payload: dict) -> dict:
         repo.set_workflow(req.task_id, wf_id)
     except Exception:
         return build_error("상태를 변경하지 못했습니다. 잠시 후 다시 시도해 주세요.")
+
+    AUDIT.write(WORKFLOW, user=req.user_id, channel=req.channel_id,
+                task=req.task_id, to=target)
 
     # 바뀐 뒤의 목록을 다시 읽어 화면을 갱신한다.
     # 여기서 실패해도 상태 변경 자체는 이미 성공했으므로 결과는 알려야 한다.
@@ -291,7 +302,9 @@ def _handle_form_action(form) -> dict:
     if item is None:
         return build_form_result("확인 시간이 지났습니다. 다시 /접수 해주세요.")
 
-    text = create(item, repo, announce=_announce_new_request)
+    text = create(item, repo, announce=_announce_new_request,
+                  on_created=lambda task_id: AUDIT.write(
+                      CREATE, user=user, channel=channel, task=task_id))
     return build_form_result(text)
 
 
@@ -344,6 +357,16 @@ class Handler(BaseHTTPRequestHandler):
             self._send(401, {"error": "unauthorized"})
             return
 
+        # 앱 토큰이 맞아도 사람을 한 번 더 본다. 토큰은 "두레이가 보낸
+        # 요청인가"를 말할 뿐 "이 사람이 써도 되는가"는 말하지 않는다.
+        user = payload.get("userId") or (payload.get("user") or {}).get("id")
+        if not GUARD.permits(user):
+            AUDIT.write(DENIED, user=user, channel=payload.get("channelId"),
+                        path=path)
+            print(f"    ⚠️ 승인되지 않은 사용자 — 거부 (member={user})")
+            self._send(200, {"responseType": "ephemeral", "text": DENIED_MESSAGE})
+            return
+
         try:
             result = fn(payload)
         except Exception as e:
@@ -376,6 +399,8 @@ def main() -> None:
     print(f"  프로젝트    : {PROJECT or '(미설정)'}")
     print(f"  appToken    : {'설정됨' if APP_TOKEN else '미설정 — 검증 생략'}")
     print(f"  CRM         : {CRM_LABEL}")
+    print(f"  승인 사용자 : {GUARD.label}")
+    print(f"  감사로그    : {AUDIT.label}")
     print("=" * 60)
     print()
     HTTPServer(("0.0.0.0", port), Handler).serve_forever()
