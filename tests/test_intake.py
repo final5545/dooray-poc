@@ -156,3 +156,33 @@ class TestExpiry:
         call(f"#기술정보\n{FILLED}", s, tickets)
         assert "확인할 요청이 없" in call("#확인", s, tickets)
         assert tickets.created == []
+
+
+class TestCrmUnavailable:
+    """CRM에 못 닿아도 접수는 된다.
+
+    커맨드 서버(ai-node)는 사내 CRM 대역에 닿지 못한다(2026-09-10 확인).
+    그래도 /접수 는 동작해야 한다 — 양식에 적힌 고객명으로 넘어간다.
+    """
+
+    class _Down:
+        def fetch(self, code):
+            from crm.client import CrmUnavailable
+            raise CrmUnavailable("CRM 연결 실패: refused")
+
+    def test_CRM이_죽어도_확인_화면이_나온다(self, store, tickets):
+        got = handle(f"#기술정보\n{FILLED}", channel=CH, user_id=USER, store=store,
+                     tickets=tickets, customers=self._Down(), today=TODAY)
+        assert "생성할까요" in got
+
+    def test_양식의_고객명으로_제목을_만든다(self, store, tickets):
+        got = handle(f"#기술정보\n{FILLED}", channel=CH, user_id=USER, store=store,
+                     tickets=tickets, customers=self._Down(), today=TODAY)
+        assert "미래에셋자산운용" in got      # 양식에 적힌 값
+
+    def test_고객명도_없으면_유형만으로_제목을_만든다(self, store, tickets):
+        bare = "이전요청서\n[기본정보]\n고객번호 : E120452\n[요청정보]\n메모 : 확인"
+        handle(f"#기술정보\n{bare}", channel=CH, user_id=USER, store=store,
+               tickets=tickets, customers=self._Down(), today=TODAY)
+        got = handle("#확인", channel=CH, user_id=USER, store=store, tickets=tickets)
+        assert "접수되었습니다" in got and tickets.created[0][0].startswith("장비/설비 이전")

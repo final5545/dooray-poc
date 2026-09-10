@@ -374,6 +374,10 @@ footer .mono{font-family:"IBM Plex Mono",monospace}
             </table>
           </div>
           <p><code>/접수</code> 는 방의 최근 양식을 다시 읽어 같은 내용을 <strong>[생성] [취소] 버튼</strong>과 함께 띄웁니다. 고객 연락처가 방에 남지 않는다는 점도 이쪽이 낫습니다.</p>
+
+          <div class="note plain">
+            <b><code>/접수</code> 로 만들 때는 양식의 「고객명」 칸을 채워 주세요.</b> 이 경로는 서버가 처리하는데 <strong>서버에서는 CRM 조회가 되지 않습니다</strong>(사내망 대역 차이). 비워 두면 제목이 <code>장비/설비 이전 [접수]</code> 처럼 회사명 없이 만들어집니다. <code>#확인</code> 은 맥이 처리하므로 비워 두어도 CRM이 채웁니다.
+          </div>
           <div class="say">기술지원 요청이 접수되었습니다.
 미래에셋자산운용 장비/설비 이전 [접수 9/30]
 고객번호 : E230096

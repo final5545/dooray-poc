@@ -17,7 +17,7 @@ import threading
 import time
 from dataclasses import dataclass
 
-from crm.client import CustomerRepository
+from crm.client import CrmUnavailable, CustomerRepository
 from crm.parser import parse_all_customer_codes
 
 from .form import (
@@ -156,6 +156,11 @@ def prepare(form_text: str, *, channel: str, user_id: str,
         try:
             row = customers.fetch(data.code)
             customer_name = (row or {}).get("name")
+        except CrmUnavailable as e:
+            # 예상된 상황이다. 커맨드 서버(ai-node)는 사내 CRM 대역에 닿지
+            # 못해 매번 여기로 온다(2026-09-10 확인). 스택을 찍을 이유가 없다 —
+            # 양식에 적힌 고객명으로 넘어가면 그만이다.
+            log.info("CRM 조회 건너뜀 (%s) — 양식의 고객명을 쓴다: %s", e, data.code)
         except Exception:
             log.exception("CRM 조회 실패: %s", data.code)
     if not customer_name:
